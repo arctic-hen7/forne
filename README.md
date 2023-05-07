@@ -16,6 +16,8 @@ California works by taking your input file and converting it into its own custom
 
 Once you've got your California file (stored as JSON), you can use it by...
 
+*Note: building California manually requires Rust 1.69 or later, due to an ICE caused by some mutable reference wizardry.*
+
 # License and Disclaimer
 
 See [`LICENSE`](./LICENSE). This project has no affiliation whatsoever with the U.S. state of California.

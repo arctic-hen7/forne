@@ -1,12 +1,245 @@
-use fancy_regex::Regex;
-use anyhow::{Result, Error, bail};
-use serde::{Serialize, Deserialize};
-use std::io::{self, Write};
-use std::collections::HashMap;
-use rand::{seq::SliceRandom, distributions::weighted::WeightedError};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-use lazy_static::lazy_static;
+// use clap::Parser;
+// use fancy_regex::Regex;
+// use anyhow::{Result, Error, bail};
+// use std::io::{self, Write};
+// use std::collections::HashMap;
+// use rand::{seq::SliceRandom, distributions::weighted::WeightedError};
+// use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+// use lazy_static::lazy_static;
+// use rhai::Engine;
+// use crate::methods::Method;
+// use crate::set::*;
+// use crate::cli::*;
 
+// This is the CLI binary, which must be built with the `cli` feature flag
+#[cfg(not(feature = "cli"))]
+compile_error!("the cli binary must be built with the `cli` feature flag");
+
+#[cfg(feature = "cli")]
+fn main() -> anyhow::Result<()> {
+    use std::{path::PathBuf, fs};
+    use anyhow::bail;
+    use clap::Parser;
+    use opts::{Args, Command};
+    use california::{California, Set, RawMethod};
+    use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
+    let args = Args::parse();
+    match args.command {
+        Command::New { input, output, adapter } => {
+            let contents = fs::read_to_string(input).unwrap();
+            todo!("adapters")
+        },
+        Command::Learn { set, method, ty, count } => {
+            let set = Set::from_json(&set)?;
+            let mut california = California::new(set);
+            let method = if RawMethod::is_inbuilt(&method) {
+                RawMethod::Inbuilt(method)
+            } else {
+                // It's a path to a custom script
+                let method_path = PathBuf::from(&method);
+                if let Ok(contents) = fs::read_to_string(&method_path) {
+                    // Follow California's recommended naming conventions for custom methods
+                    let name = format!("{}/{}", whoami::username(), method_path.file_name().unwrap().to_string_lossy());
+                    RawMethod::Custom {
+                        name,
+                        body: contents
+                    }
+                } else {
+                    bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, california couldn't read it)")
+                }
+            };
+            let mut driver = california
+                .learn(method)?;
+            driver.set_target(ty)
+                .set_max_count(count);
+
+            let num_reviewed = drive(driver)?;
+            println!("Learn session complete! You reviewed {} cards.", num_reviewed);
+        },
+        Command::Test { set, static_test, no_star, no_unstar, ty, count } => {
+            let set = Set::from_json(&set)?;
+            let mut california = California::new(set);
+            let mut driver = california
+                .test();
+            driver.set_target(ty)
+                .set_max_count(count);
+            if static_test {
+                driver.no_mark_starred().no_mark_unstarred();
+            } else if no_star {
+                driver.no_mark_starred();
+            } else if no_unstar {
+                driver.no_mark_unstarred();
+            }
+
+            let num_reviewed = drive(driver)?;
+            println!("Test complete! You reviewed {} cards.", num_reviewed);
+
+        },
+        Command::List { set, ty } => {
+            let set = Set::from_json(&set)?;
+
+            let mut yellow = ColorSpec::new();
+            yellow.set_fg(Some(Color::Yellow));
+            let mut green = ColorSpec::new();
+            green.set_fg(Some(Color::Green));
+
+            let mut stdout = StandardStream::stdout(ColorChoice::Always);
+            for card in set.list(ty) {
+                print!("{}Q: {}", if card.starred {
+                    "⦿ "
+                } else { "" }, card.question);
+                stdout.set_color(&green)?;
+                println!("A: {}", card.answer);
+                stdout.reset()?;
+                println!("---");
+            }
+        },
+    };
+
+    Ok(())
+}
+
+/// Displays questions and answers, receiving input from the user and continuing a learning/testing session.
+///
+/// This returns the number of cards reviewed.
+#[cfg(feature = "cli")]
+fn drive<'a>(mut driver: california::Driver<'a, 'a>) -> anyhow::Result<u32> {
+    use std::io::{self, Write};
+    use anyhow::bail;
+    use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+
+    let mut yellow = ColorSpec::new();
+    yellow.set_fg(Some(Color::Yellow));
+    let mut green = ColorSpec::new();
+    green.set_fg(Some(Color::Green));
+
+    let stdin = io::stdin();
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+
+    let mut card_option = driver.first()?;
+    while let Some(card) = card_option {
+        stdout.set_color(&yellow)?;
+        print!("{}Q: {}", if card.starred {
+            "⦿ "
+        } else { "" }, card.question);
+        stdout.flush()?;
+        // Wait for the user to press enter
+        let res = stdin.read_line(&mut String::new());
+        // If the user wants to end the run, let them (their progress will be saved)
+        if let Ok(0) = res {
+            break;
+        }
+
+        stdout.set_color(&green)?;
+        println!("A: {}", card.answer);
+        stdout.reset()?;
+
+        // Prompt the user for a response based on the method (or y/n if this is a test)
+        let res = loop {
+            print!(
+                "How did you do? [{}] ",
+                driver.allowed_responses().join("/"),
+            );
+            stdout.flush()?;
+            let mut input = String::new();
+            match stdin.read_line(&mut input) {
+                Ok(_) => {
+                    let input = input.strip_suffix("\n").unwrap_or(input.as_str());
+                    if driver.allowed_responses().iter().any(|x| x == input) {
+                        break input.to_string();
+                    } else {
+                        println!("Invalid option!");
+                        continue;
+                    }
+                }
+                Err(_) => bail!("failed to read from stdin"),
+            };
+        };
+        // Clear the screen to make sure the user can't cheat
+        println!("{}", termion::clear::All);
+
+        // This will adjust weights etc. and get us a new card, if one exists
+        card_option = driver.next(res)?;
+    }
+
+    Ok(driver.get_count())
+}
+
+#[cfg(feature = "cli")]
+mod opts {
+    use california::CardType;
+    use clap::{Parser, Subcommand};
+
+    /// California: a spaced repetition CLI to help you learn stuff
+    #[derive(Parser, Debug)]
+    #[command(author, version, about, long_about = None)]
+    pub struct Args {
+        #[clap(subcommand)]
+        pub command: Command,
+    }
+
+    #[derive(Subcommand, Debug)]
+    pub enum Command {
+        /// Creates a new set
+        New {
+            /// The file to create the set from
+            input: String,
+            /// The file to output the set to as JSON
+            output: String,
+            /// The adapter to use to parse the set
+            #[arg(short, long)]
+            adapter: String, // Secondary parsing
+        },
+        /// Starts or resumes a learning session on the given set
+        Learn {
+            /// The file the set is in
+            set: String,
+            /// The learning method to use
+            #[arg(short, long)]
+            method: String, // Secondary parsing
+            /// The type of cards to operate on (`all`, `difficult`, or `starred`)
+            #[arg(short, long = "type", value_enum)]
+            ty: CardType,
+            /// Limit the number of terms studied to the given amount (useful for consistent long-term learning); your progress will be saved
+            #[arg(short, long)]
+            count: u32,
+        },
+        /// Starts or resumes a test on the given set
+        Test {
+            /// The file the set is in
+            set: String,
+            /// If set, the test will be made 'static', and will not star terms you get wrong, or unstar terms you
+            /// get right (equivalent to `--no-star --no-unstar`)
+            #[arg(long = "static")]
+            static_test: bool,
+            /// Do not mark cards you get wrong as starred
+            #[arg(long)]
+            no_star: bool,
+            /// Do not unstar cards you get right if they're currently starred (useful to review cards without losing which ones you're consistently getting wrong)
+            #[arg(long)]
+            no_unstar: bool,
+            /// The type of cards to operate on (`all`, `difficult`, or `starred`)
+            #[arg(short, long = "type", value_enum)]
+            ty: CardType,
+            /// Limit the number of terms studied to the given amount (useful for consistent long-term learning); your progress will be saved
+            #[arg(short, long)]
+            count: u32,
+        },
+        /// Lists all the terms in the given set
+        List {
+            /// The file the set is in
+            set: String,
+            /// The type of cards to operate on (`all`, `difficult`, or `starred`)
+            #[arg(short, long = "type", value_enum)]
+            ty: CardType,
+        },
+    }
+
+}
+
+
+/*
 lazy_static! {
     static ref METHODS: HashMap<String, Method> = {
         let mut map = HashMap::new();
@@ -69,56 +302,61 @@ lazy_static! {
         map
     };
 }
+*/
 
-fn main() -> Result<()> {
-    let args = std::env::args().collect::<Vec<String>>();
-    let op = match args.get(1) {
-        Some(op) => op,
-        None => bail!("you must provide an operation to perform"),
-    };
-    if op == "create" {
-        let filename = match args.get(2) {
-            Some(f) => f,
-            None => bail!("you must provide a filename to create the set from"),
-        };
-        let output = match args.get(3) {
-            Some(o) => o,
-            None => bail!("you must provide an output file to output this set to"),
-        };
+// fn _main() -> Result<()> {
 
-        let set = Set::from_org(&filename)?;
-        set.save_to_json(output)?;
-    } else if op == "run" {
-        let filename = match args.get(2) {
-            Some(f) => f,
-            None => bail!("you must provide a filename to create the set from"),
-        };
-        let method = match args.get(3) {
-            Some(m) => m,
-            None => bail!("you must provide a run method to use"),
-        };
-        // If provided, limit the number of terms studied in any one go to a count
-        let count: Option<u32> = args.get(4).map(|x| x.parse().unwrap());
-        let mut set = Set::from_json(&filename)?;
 
-        // Invoke the command loop, but save the set before propagating errors
-        let res = command_loop(&mut set, method, count);
-        set.save_to_json(&filename)?;
-        println!("Set saved.");
-        res?;
+    // Ok(())
 
-    } else if op == "methods" {
-        for (idx, method) in METHODS.keys().enumerate() {
-            println!("{}. {}", idx + 1, method);
-        }
-    } else {
-        bail!("invalid operation");
-    }
+    // let args = std::env::args().collect::<Vec<String>>();
+    // let op = match args.get(1) {
+    //     Some(op) => op,
+    //     None => bail!("you must provide an operation to perform"),
+    // };
+    // if op == "create" {
+    //     let filename = match args.get(2) {
+    //         Some(f) => f,
+    //         None => bail!("you must provide a filename to create the set from"),
+    //     };
+    //     let output = match args.get(3) {
+    //         Some(o) => o,
+    //         None => bail!("you must provide an output file to output this set to"),
+    //     };
 
-    println!("Goodbye!");
-    Ok(())
-}
+    //     let set = Set::from_org(&filename)?;
+    //     set.save_to_json(output)?;
+    // } else if op == "run" {
+    //     let filename = match args.get(2) {
+    //         Some(f) => f,
+    //         None => bail!("you must provide a filename to create the set from"),
+    //     };
+    //     let method = match args.get(3) {
+    //         Some(m) => m,
+    //         None => bail!("you must provide a run method to use"),
+    //     };
+    //     // If provided, limit the number of terms studied in any one go to a count
+    //     let count: Option<u32> = args.get(4).map(|x| x.parse().unwrap());
+    //     let mut set = Set::from_json(&filename)?;
 
+    //     // Invoke the command loop, but save the set before propagating errors
+    //     let res = command_loop(&mut set, method, count);
+    //     set.save_to_json(&filename)?;
+    //     println!("Set saved.");
+    //     res?;
+
+    // } else if op == "methods" {
+    //     for (idx, method) in METHODS.keys().enumerate() {
+    //         println!("{}. {}", idx + 1, method);
+    //     }
+    // } else {
+    //     bail!("invalid operation");
+    // }
+
+    // println!("Goodbye!");
+    // Ok(())
+// }
+/*
 fn command_loop(set: &mut Set, method: &str, count: Option<u32>) -> Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -171,16 +409,7 @@ fn parse_command(command: &str, method: &str, set: &mut Set, count: Option<u32>)
     Ok(())
 }
 
-/// A set of cards with associated data about how learning this set has progressed.
-#[derive(Serialize, Deserialize)]
-struct Set {
-    cards: Vec<Card>,
-    /// The state of the set in terms of tests. This will be `Some(..)` if there was a previous
-    /// test, and the attached string will be the name of the method used. Runs on different targets
-    /// will not interfere with each other, and this program is built to support them.
-    run_state: Option<String>,
-    test_in_progress: bool,
-}
+
 impl Set {
     /// Initiates a runthrough of this set with the given method name and target.
     ///
@@ -303,28 +532,6 @@ impl Set {
 
         Ok(())
     }
-    /// Resets all run progress for this set. This is irreversible!
-    ///
-    /// This will not change whether or not cards are starred.
-    fn reset_run(&mut self) {
-        for card in self.cards.iter_mut() {
-            card.weight = 1.0;
-        }
-    }
-    /// Resets all test progress for this set. This is irreversible!
-    ///
-    /// This will not change whether or not cards are starred.
-    fn reset_test(&mut self) {
-        for card in self.cards.iter_mut() {
-            card.seen_in_test = false;
-        }
-    }
-    /// Resets all stars for this set. This is irreversible!
-    fn reset_stars(&mut self) {
-        for card in self.cards.iter_mut() {
-            card.starred = false;
-        }
-    }
     /// Creates a new set from the given file of ARQs.
     fn from_org(filename: &str) -> Result<Self> {
         let contents = std::fs::read_to_string(filename)?;
@@ -359,18 +566,6 @@ impl Set {
             test_in_progress: false,
         })
     }
-    /// Saves this set to the given JSON file, preserving all progress.
-    fn save_to_json(&self, output: &str) -> Result<()> {
-        let json = serde_json::to_string(&self)?;
-        std::fs::write(output, json)?;
-        Ok(())
-    }
-    /// Loads this set from the given JSON file.
-    fn from_json(filename: &str) -> Result<Self> {
-        let contents = std::fs::read_to_string(filename)?;
-        let set = serde_json::from_str(&contents)?;
-        Ok(set)
-    }
 }
 
 /// Asks the user to confirm something with the given message.
@@ -397,51 +592,4 @@ fn confirm(message: &str) -> Result<bool> {
 
     Ok(res)
 }
-
-/// A single key-value pair that represents an element in the set.
-#[derive(Serialize, Deserialize)]
-struct Card {
-    /// The prompt the user will be given for this card.
-    question: String,
-    /// The answer this card has (which will be shown to the user).
-    answer: String,
-    /// Whether or not this card has been seen yet in a test.
-    seen_in_test: bool,
-    /// The weight of this card in the run process, which is a floating-point
-    /// number representing the probability that this card will be shown to the user
-    /// next (when all those probabilities are summed together). This allows manipulation
-    /// by generic learning algorithms.
-    weight: f32,
-    /// Whether or not this card has been marked as difficult. Difficult cards are intended to
-    /// be identified during the learning process, and the marking of them as such should be
-    /// automated.
-    difficult: bool,
-    /// Whether or not this card has been starred.
-    starred: bool,
-}
-
-/// The different card categories a run might operate on. Since one run's progress will contaminate
-/// that o
-enum RunTarget {
-    All,
-    Difficult,
-    Starred,
-}
-
-/// A method of learning/testing. This program is deliberately as generic as possible, providing
-/// a generic execution method for running through a set, which one of these methods can control.
-struct Method {
-    /// A list of responses the user can give after having been shown the answer to a card. These will
-    /// be displayed as options in the order they are provided in here.
-    responses: Vec<String>,
-    /// A closure that, given a card, produces a weight. This weight represents how
-    /// likely the card is to be presented to the user in the next random choice. When a card is finished
-    /// with, this should be set to 0.0. When all cards have a weight 0.0, the run will naturally terminate.
-    ///
-    /// Any cards not part of the relevant run target will not be presented to this function in the first
-    /// place.
-    get_weight: Box<dyn Fn(&Card) -> f32 + Send + Sync + 'static>,
-    /// A closure that, given a card, adjusts the weight for the given card based on
-    /// the user's response, which is guaranteed to be one of the provided possible responses.
-    adjust_weight: Box<dyn Fn(&str, &mut Card) + Send + Sync + 'static>,
-}
+*/
