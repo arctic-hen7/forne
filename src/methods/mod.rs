@@ -28,6 +28,10 @@ pub struct Method<'e> {
     ///
     /// Note that learn runs do not have the authority to mark cards as starred.
     pub adjust_card: Box<dyn Fn(String, Card) -> Result<(Dynamic, bool)> + Send + Sync + 'e>,
+    /// A closure that produces the default metadata for this method. This is used when a new set is created for
+    /// this method to initialise all its cards with metadata that is appropriate to this method. Generally,
+    /// methods should keep this as small as possible to minimise the size of sets on-disk.
+    pub get_default_metadata: Box<dyn Fn() -> Result<Dynamic> + Send + Sync + 'e>,
 }
 impl<'e> Method<'e> {
     /// Compiles the given inbuilt script into a full-fledged [`Method`].
@@ -76,11 +80,15 @@ impl<'e> Method<'e> {
     fn from_ast(method_name: &str, ast: AST, engine: &'e Engine) -> Result<Self> {
         // Extract the closures directly (using the shared engine)
         let ast1 = ast.clone();
+        let ast2 = ast.clone();
         let get_weight = Box::new(move |card| {
             engine.call_fn(&mut Scope::new(), &ast, "get_weight", (card,)).with_context(|| "failed to get weight for card (this is a bug in the selected learning method)")
         });
         let adjust_card = Box::new(move |res, card| {
             engine.call_fn(&mut Scope::new(), &ast1, "adjust_card", (res, card)).with_context(|| "failed to adjust card data for last card (this is a bug in the selected learning method)")
+        });
+        let get_default_metadata = Box::new(move || {
+            engine.call_fn(&mut Scope::new(), &ast2, "get_default_metadata", ()).with_context(|| "failed to get default metadata for a new card (this is a bug in the selected learning method)")
         });
 
         // Assemble all that into a method
@@ -90,6 +98,7 @@ impl<'e> Method<'e> {
             responses: Vec::new(),
             get_weight,
             adjust_card,
+            get_default_metadata,
         })
     }
     /// Determines if the given method name is inbuilt. This may be unwittingly provided a full method script as well.

@@ -1,54 +1,32 @@
-// use clap::Parser;
-// use fancy_regex::Regex;
-// use anyhow::{Result, Error, bail};
-// use std::io::{self, Write};
-// use std::collections::HashMap;
-// use rand::{seq::SliceRandom, distributions::weighted::WeightedError};
-// use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-// use lazy_static::lazy_static;
-// use rhai::Engine;
-// use crate::methods::Method;
-// use crate::set::*;
-// use crate::cli::*;
-
 // This is the CLI binary, which must be built with the `cli` feature flag
 #[cfg(not(feature = "cli"))]
 compile_error!("the cli binary must be built with the `cli` feature flag");
 
 #[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
-    use std::{path::PathBuf, fs};
-    use anyhow::bail;
+    use std::fs;
+    use anyhow::Context;
     use clap::Parser;
     use opts::{Args, Command};
-    use california::{California, Set, RawMethod};
+    use california::{California, Set};
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
     let args = Args::parse();
     match args.command {
-        Command::New { input, output, adapter } => {
-            let contents = fs::read_to_string(input).unwrap();
-            todo!("adapters")
+        Command::New { input, output, adapter, method } => {
+            let contents = fs::read_to_string(input).with_context(|| "failed to read from source file")?;
+            let adapter_script = fs::read_to_string(adapter).with_context(|| "failed to read adapter script")?;
+            let method = method_from_string(method)?;
+
+            let california = California::new_set(contents, &adapter_script, method)?;
+            let json = california.save_set()?;
+            fs::write(output, json).with_context(|| "failed to write new set to output file")?;
         },
         Command::Learn { set, method, ty, count } => {
-            let set = Set::from_json(&set)?;
-            let mut california = California::new(set);
-            let method = if RawMethod::is_inbuilt(&method) {
-                RawMethod::Inbuilt(method)
-            } else {
-                // It's a path to a custom script
-                let method_path = PathBuf::from(&method);
-                if let Ok(contents) = fs::read_to_string(&method_path) {
-                    // Follow California's recommended naming conventions for custom methods
-                    let name = format!("{}/{}", whoami::username(), method_path.file_name().unwrap().to_string_lossy());
-                    RawMethod::Custom {
-                        name,
-                        body: contents
-                    }
-                } else {
-                    bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, california couldn't read it)")
-                }
-            };
+            let json = fs::read_to_string(set).with_context(|| "failed to read from set file")?;
+            let set = Set::from_json(&json)?;
+            let mut california = California::from_set(set);
+            let method = method_from_string(method)?;
             let mut driver = california
                 .learn(method)?;
             driver.set_target(ty)
@@ -58,8 +36,9 @@ fn main() -> anyhow::Result<()> {
             println!("Learn session complete! You reviewed {} cards.", num_reviewed);
         },
         Command::Test { set, static_test, no_star, no_unstar, ty, count } => {
-            let set = Set::from_json(&set)?;
-            let mut california = California::new(set);
+            let json = fs::read_to_string(set).with_context(|| "failed to read from set file")?;
+            let set = Set::from_json(&json)?;
+            let mut california = California::from_set(set);
             let mut driver = california
                 .test();
             driver.set_target(ty)
@@ -77,7 +56,8 @@ fn main() -> anyhow::Result<()> {
 
         },
         Command::List { set, ty } => {
-            let set = Set::from_json(&set)?;
+            let json = fs::read_to_string(set).with_context(|| "failed to read from set file")?;
+            let set = Set::from_json(&json)?;
 
             let mut yellow = ColorSpec::new();
             yellow.set_fg(Some(Color::Yellow));
@@ -98,6 +78,34 @@ fn main() -> anyhow::Result<()> {
     };
 
     Ok(())
+}
+
+/// Creates a `RawMethod` from a string provided on the command line that might either be the name of an inbuilt method
+/// or the path to a custom Rhai script.
+///
+/// For custom scripts, this will make their name be the filename of the script with the current user's username prefixed.
+#[cfg(feature = "cli")]
+fn method_from_string(method_str: String) -> anyhow::Result<california::RawMethod> {
+    use std::{path::PathBuf, fs};
+    use anyhow::bail;
+    use california::RawMethod;
+
+    if RawMethod::is_inbuilt(&method_str) {
+        Ok(RawMethod::Inbuilt(method_str))
+    } else {
+        // It's a path to a custom script
+        let method_path = PathBuf::from(&method_str);
+        if let Ok(contents) = fs::read_to_string(&method_path) {
+            // Follow California's recommended naming conventions for custom methods
+            let name = format!("{}/{}", whoami::username(), method_path.file_name().unwrap().to_string_lossy());
+            Ok(RawMethod::Custom {
+                name,
+                body: contents
+            })
+        } else {
+            bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, california couldn't read it)")
+        }
+    }
 }
 
 /// Displays questions and answers, receiving input from the user and continuing a learning/testing session.
@@ -168,6 +176,8 @@ fn drive<'a>(mut driver: california::Driver<'a, 'a>) -> anyhow::Result<u32> {
 
 #[cfg(feature = "cli")]
 mod opts {
+    use std::path::PathBuf;
+
     use california::CardType;
     use clap::{Parser, Subcommand};
 
@@ -187,9 +197,12 @@ mod opts {
             input: String,
             /// The file to output the set to as JSON
             output: String,
-            /// The adapter to use to parse the set
+            /// The path to the adapter script to be used to parse the set
             #[arg(short, long)]
-            adapter: String, // Secondary parsing
+            adapter: PathBuf,
+            /// The learning method to use for the new set
+            #[arg(short, long)]
+            method: String, // Secondary parsing
         },
         /// Starts or resumes a learning session on the given set
         Learn {

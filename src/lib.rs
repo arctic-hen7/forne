@@ -23,12 +23,24 @@ pub struct California {
     rhai_engine: Engine,
 }
 impl California {
+    /// Creates a new set from the given source file text and adapter script. This is a thin wrapper over the `Set::new_with_adapter`
+    /// method, abstracting away the internal use of a Rhai engine. In general, you should prefer this method, as there is no additional
+    /// overhead to using it.
+    pub fn new_set(src: String, adapter_script: &str, raw_method: RawMethod) -> Result<Self> {
+        let engine = Self::create_engine();
+        let set = Set::new_with_adapter(src, adapter_script, raw_method, &engine)?;
+
+        Ok(Self {
+            set,
+            rhai_engine: engine,
+        })
+    }
     /// Creates a new California engine. While not inherently expensive, this should generally only be called once, or when
     /// the system needs to restart.
-    pub fn new(set: Set) -> Self {
+    pub fn from_set(set: Set) -> Self {
         Self {
             set,
-            rhai_engine: Engine::new(),
+            rhai_engine: Self::create_engine(),
         }
     }
     /// Start a new learning session with this instance and the given method (see [`RawMethod`]), creating a [`Driver`]
@@ -45,5 +57,20 @@ impl California {
     /// Start a new test with this instance, creating a [`Driver`] to run it.
     pub fn test(&mut self) -> Driver<'_, '_> {
         Driver::new_test(&mut self.set)
+    }
+    /// Saves this set to JSON.
+    ///
+    /// # Errors
+    ///
+    /// This can only possible fail if the learning method produces metadata that cannot be serialized into JSON.
+    // TODO Is that even possible with Rhai objects?
+    pub fn save_set(&self) -> Result<String> {
+        self.set.save()
+    }
+
+    /// Creates a Rhai engine with the utilities California provides all pre-registered.
+    fn create_engine() -> Engine {
+        // TODO regexp utilities
+        Engine::new()
     }
 }

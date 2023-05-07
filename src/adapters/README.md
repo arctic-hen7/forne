@@ -1,3 +1,0 @@
-# California Adapters
-
-TODO

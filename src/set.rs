@@ -87,10 +87,9 @@ impl Set {
         let json = serde_json::to_string(&self)?;
         Ok(json)
     }
-    /// Loads this set from the given JSON file.
-    pub fn from_json(filename: &str) -> Result<Self> {
-        let contents = std::fs::read_to_string(filename)?;
-        let set = serde_json::from_str(&contents)?;
+    /// Loads this set from the given JSON.
+    pub fn from_json(json: &str) -> Result<Self> {
+        let set = serde_json::from_str(&json)?;
         Ok(set)
     }
     /// Resets all test progress for this set. This is irreversible!
