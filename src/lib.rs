@@ -71,6 +71,9 @@ impl California {
     /// Creates a Rhai engine with the utilities California provides all pre-registered.
     fn create_engine() -> Engine {
         // TODO regexp utilities
-        Engine::new()
+        let mut engine = Engine::new();
+        engine.register_type_with_name::<Card>("Card");
+        engine
     }
 }
+

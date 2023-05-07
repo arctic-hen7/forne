@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use anyhow::{Result, Context};
-use rhai::{Engine, Scope};
+use anyhow::{Result, Context, anyhow};
+use rhai::{Engine, Scope, Dynamic};
 use uuid::Uuid;
 use crate::{set::Set, Card, RawMethod};
 
@@ -17,13 +17,15 @@ impl Set {
 
         let mut scope = Scope::new();
         scope.push_constant("SOURCE", src);
-        let pairs: Vec<(String, String)> = engine.eval_with_scope(&mut scope, script).with_context(|| "failed to run adapter script")?;
+        let raw_array: Vec<Dynamic> = engine.eval_with_scope(&mut scope, script).with_context(|| "failed to run adapter script")?;
         let mut cards = HashMap::new();
 
-        for (question, answer) in pairs {
+        for dyn_elem in raw_array {
+            let elems: Vec<String> = dyn_elem.into_typed_array().map_err(|_| anyhow!("couldn't parse adapter results"))?;
+
             let card = Card {
-                question,
-                answer,
+                question: elems.get(0).ok_or_else(|| anyhow!("adapter did not return question for card"))?.to_string(),
+                answer: elems.get(1).ok_or_else(|| anyhow!("adapter did not return answer for card"))?.to_string(),
                 seen_in_test: false,
                 difficult: false,
                 starred: false,

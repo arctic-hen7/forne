@@ -21,9 +21,11 @@ fn main() -> anyhow::Result<()> {
             let california = California::new_set(contents, &adapter_script, method)?;
             let json = california.save_set()?;
             fs::write(output, json).with_context(|| "failed to write new set to output file")?;
+
+            println!("New set created!");
         },
-        Command::Learn { set, method, ty, count } => {
-            let json = fs::read_to_string(set).with_context(|| "failed to read from set file")?;
+        Command::Learn { set: set_file, method, ty, count } => {
+            let json = fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
             let mut california = California::from_set(set);
             let method = method_from_string(method)?;
@@ -32,11 +34,11 @@ fn main() -> anyhow::Result<()> {
             driver.set_target(ty)
                 .set_max_count(count);
 
-            let num_reviewed = drive(driver)?;
-            println!("Learn session complete! You reviewed {} cards.", num_reviewed);
+            let num_reviewed = drive(driver, &set_file)?;
+            println!("\nLearn session complete! You reviewed {} cards.", num_reviewed);
         },
-        Command::Test { set, static_test, no_star, no_unstar, ty, count } => {
-            let json = fs::read_to_string(set).with_context(|| "failed to read from set file")?;
+        Command::Test { set: set_file, static_test, no_star, no_unstar, ty, count } => {
+            let json = fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
             let mut california = California::from_set(set);
             let mut driver = california
@@ -51,8 +53,8 @@ fn main() -> anyhow::Result<()> {
                 driver.no_mark_unstarred();
             }
 
-            let num_reviewed = drive(driver)?;
-            println!("Test complete! You reviewed {} cards.", num_reviewed);
+            let num_reviewed = drive(driver, &set_file)?;
+            println!("\nTest complete! You reviewed {} cards.", num_reviewed);
 
         },
         Command::List { set, ty } => {
@@ -65,14 +67,22 @@ fn main() -> anyhow::Result<()> {
             green.set_fg(Some(Color::Green));
 
             let mut stdout = StandardStream::stdout(ColorChoice::Always);
-            for card in set.list(ty) {
-                print!("{}Q: {}", if card.starred {
+            let mut num_printed = 0;
+            let list = set.list(ty);
+            for card in list.iter() {
+                stdout.set_color(&yellow)?;
+                println!("{}Q: {}", if card.starred {
                     "⦿ "
                 } else { "" }, card.question);
                 stdout.set_color(&green)?;
                 println!("A: {}", card.answer);
                 stdout.reset()?;
-                println!("---");
+
+                num_printed += 1;
+                // Only print the separator if this isn't the last card
+                if list.len() != num_printed {
+                    println!("---");
+                }
             }
         },
     };
@@ -108,13 +118,14 @@ fn method_from_string(method_str: String) -> anyhow::Result<california::RawMetho
     }
 }
 
-/// Displays questions and answers, receiving input from the user and continuing a learning/testing session.
+/// Displays questions and answers, receiving input from the user and continuing a learning/testing session. This takes
+/// both a driver and the input file that the set is stored in, so it can be periodically saved to prevent lost progress.
 ///
 /// This returns the number of cards reviewed.
 #[cfg(feature = "cli")]
-fn drive<'a>(mut driver: california::Driver<'a, 'a>) -> anyhow::Result<u32> {
-    use std::io::{self, Write};
-    use anyhow::bail;
+fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
+    use std::{io::{self, Write}, fs};
+    use anyhow::{bail, Context};
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
     let mut yellow = ColorSpec::new();
@@ -127,6 +138,10 @@ fn drive<'a>(mut driver: california::Driver<'a, 'a>) -> anyhow::Result<u32> {
 
     let mut card_option = driver.first()?;
     while let Some(card) = card_option {
+        // Save the set quickly
+        let json = driver.save_set_to_json()?;
+        fs::write(set_file, json).with_context(|| "failed to save set to json (progress up to the previous card was saved though)")?;
+
         stdout.set_color(&yellow)?;
         print!("{}Q: {}", if card.starred {
             "⦿ "
@@ -212,7 +227,7 @@ mod opts {
             #[arg(short, long)]
             method: String, // Secondary parsing
             /// The type of cards to operate on (`all`, `difficult`, or `starred`)
-            #[arg(short, long = "type", value_enum)]
+            #[arg(short, long = "type", value_enum, default_value = "all")]
             ty: CardType,
             /// Limit the number of terms studied to the given amount (useful for consistent long-term learning); your progress will be saved
             #[arg(short, long)]
@@ -233,7 +248,7 @@ mod opts {
             #[arg(long)]
             no_unstar: bool,
             /// The type of cards to operate on (`all`, `difficult`, or `starred`)
-            #[arg(short, long = "type", value_enum)]
+            #[arg(short, long = "type", value_enum, default_value = "all")]
             ty: CardType,
             /// Limit the number of terms studied to the given amount (useful for consistent long-term learning); your progress will be saved
             #[arg(short, long)]
@@ -244,7 +259,7 @@ mod opts {
             /// The file the set is in
             set: String,
             /// The type of cards to operate on (`all`, `difficult`, or `starred`)
-            #[arg(short, long = "type", value_enum)]
+            #[arg(short, long = "type", value_enum, default_value = "all")]
             ty: CardType,
         },
     }

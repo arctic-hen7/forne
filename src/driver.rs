@@ -256,4 +256,9 @@ impl<'e, 's> Driver<'e, 's> {
             bail!("called `.next()` before `.first()`, or without handling error");
         }
     }
+    /// Saves the underlying set to JSON. This should generally be called between each presentation of a card to ensure the user
+    /// does not lose their progress.
+    pub fn save_set_to_json(&self) -> Result<String> {
+        self.set.save()
+    }
 }
