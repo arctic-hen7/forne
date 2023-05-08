@@ -2,7 +2,7 @@
 
 Forne is a *Turing-complete spaced repetition engine* to help you learn stuff your way. What does that mean? Well, there are a few parts:
 
-- **Turing-complete**: Forne is fully programmable using [Rhai](rhai.rs), a modern scripting language
+- **Turing-complete**: Forne is fully programmable using [Rhai](https://rhai.rs), a modern scripting language
 - **Spaced repetition** is the process of learning content over a period of time by periodically reviewing it
 - **Engine**: Forne is a library that can be used by anyone to add spaced repetition into their own apps
 
@@ -79,7 +79,7 @@ One complication of the test system is that, if you get a card right, and it was
 
 The first hurdle to using Forne is importing your set into it. Forne accepts a list of question/answer pairs, but this doesn't mean it can't be used for more exotic use-cases, like a three-language set. Because Forne lets you write your own importing logic, you can very easily take something like a three-way term and turn it into six separate cards (each one going to each other each way) trivially. This also allows things like cloze terms to be supported easily, and in a way that works for you. Forne provides a very simple mechanism to display terms and help you learn them: you control exactly how they're created.
 
-Adapters are written in [Rhai](rhai.rs), a simple Rust-like scripting language, and they're pretty easy to write! If you've never done any programming before, you might want to enlist the help of ChatGPT, armed with our [examples of common adapters](https://github.com/arctic-hen7/forne/tree/main/common_adapters), otherwise, go crazy! All adapters are written as simple scripts, which will be have a constant string `SOURCE`, the contents of the given source file, available, and they are expected to return an array of question/answer pairs (e.g. `[["foo", "bar"], ["q", "a"]]`). Most of the time, you can do this with a regular expression, and Forne furnishes you with several utilities for working with regexps:
+Adapters are written in [Rhai](https://rhai.rs), a simple Rust-like scripting language, and they're pretty easy to write! If you've never done any programming before, you might want to enlist the help of ChatGPT, armed with our [examples of common adapters](https://github.com/arctic-hen7/forne/tree/main/common_adapters), otherwise, go crazy! All adapters are written as simple scripts, which will be have a constant string `SOURCE`, the contents of the given source file, available, and they are expected to return an array of question/answer pairs (e.g. `[["foo", "bar"], ["q", "a"]]`). Most of the time, you can do this with a regular expression, and Forne furnishes you with several utilities for working with regexps:
 
 - `is_match(regexp, text) -> bool`
 - `matches(regexp, text) -> Array`
