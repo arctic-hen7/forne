@@ -173,6 +173,7 @@ fn drive<'a>(mut driver: forne::Driver<'a, 'a>, set_file: &str) -> anyhow::Resul
         io::{self, Write},
     };
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+    use crossterm::{ExecutableCommand, terminal};
 
     let mut yellow = ColorSpec::new();
     yellow.set_fg(Some(Color::Yellow));
@@ -230,7 +231,7 @@ fn drive<'a>(mut driver: forne::Driver<'a, 'a>, set_file: &str) -> anyhow::Resul
             };
         };
         // Clear the screen to make sure the user can't cheat
-        println!("{}", termion::clear::All);
+        stdout.execute(terminal::Clear(terminal::ClearType::All))?;
 
         // This will adjust weights etc. and get us a new card, if one exists
         card_option = driver.next(res)?;
