@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 impl Set {
     /// Creates a new [`Set`] from the given source using the given Rhai script. The script is required
-    /// to assemble a Rhai array of question/answer tuples, and California will do the rest of the work
+    /// to assemble a Rhai array of question/answer tuples, and Forn will do the rest of the work
     /// to create a full set instance.
     ///
     /// **IMPORTANT:** The engine provided to this function must have the necessary functions registered for

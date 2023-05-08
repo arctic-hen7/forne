@@ -141,7 +141,7 @@ impl<'e, 's> Driver<'e, 's> {
         }
     }
     /// Gets the first question/answer pair of this run. While it is perfectly safe to run this at any time, it
-    /// is semantically nonsensical to run this more than once, as California's internals will become completely
+    /// is semantically nonsensical to run this more than once, as Forn's internals will become completely
     /// useless. If you want to display each card to the user only once, irrespective of the metadata attached to
     /// it, you should instantiate the driver for a test, rather than a learning session.
     ///

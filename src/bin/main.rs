@@ -5,7 +5,7 @@ compile_error!("the cli binary must be built with the `cli` feature flag");
 #[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
     use anyhow::Context;
-    use california::{California, Set};
+    use forn::{Forn, Set};
     use clap::Parser;
     use opts::{Args, Command};
     use std::fs;
@@ -25,8 +25,8 @@ fn main() -> anyhow::Result<()> {
                 fs::read_to_string(adapter).with_context(|| "failed to read adapter script")?;
             let method = method_from_string(method)?;
 
-            let california = California::new_set(contents, &adapter_script, method)?;
-            let json = california.save_set()?;
+            let forn = Forn::new_set(contents, &adapter_script, method)?;
+            let json = forn.save_set()?;
             fs::write(output, json).with_context(|| "failed to write new set to output file")?;
 
             println!("New set created!");
@@ -41,14 +41,14 @@ fn main() -> anyhow::Result<()> {
             let json =
                 fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
-            let mut california = California::from_set(set);
+            let mut forn = Forn::from_set(set);
             let method = method_from_string(method)?;
             if reset && confirm("Are you absolutely certain you want to reset your learn progress? This action is IRREVERSIBLE!!!")? {
-                california.reset_learn(method.clone())?;
+                forn.reset_learn(method.clone())?;
             } else {
                 println!("Continuing with previous progress...");
             }
-            let mut driver = california.learn(method)?;
+            let mut driver = forn.learn(method)?;
             driver.set_target(ty);
             if let Some(count) = count {
                 driver.set_max_count(count);
@@ -72,13 +72,13 @@ fn main() -> anyhow::Result<()> {
             let json =
                 fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
-            let mut california = California::from_set(set);
+            let mut forn = Forn::from_set(set);
             if reset && confirm("Are you sure you want to reset your test progress?")? {
-                california.reset_test();
+                forn.reset_test();
             } else {
                 println!("Continuing with previous progress...");
             }
-            let mut driver = california.test();
+            let mut driver = forn.test();
             driver.set_target(ty);
             if let Some(count) = count {
                 driver.set_max_count(count);
@@ -134,9 +134,9 @@ fn main() -> anyhow::Result<()> {
 ///
 /// For custom scripts, this will make their name be the filename of the script with the current user's username prefixed.
 #[cfg(feature = "cli")]
-fn method_from_string(method_str: String) -> anyhow::Result<california::RawMethod> {
+fn method_from_string(method_str: String) -> anyhow::Result<forn::RawMethod> {
     use anyhow::bail;
-    use california::RawMethod;
+    use forn::RawMethod;
     use std::{fs, path::PathBuf};
 
     if RawMethod::is_inbuilt(&method_str) {
@@ -145,7 +145,7 @@ fn method_from_string(method_str: String) -> anyhow::Result<california::RawMetho
         // It's a path to a custom script
         let method_path = PathBuf::from(&method_str);
         if let Ok(contents) = fs::read_to_string(&method_path) {
-            // Follow California's recommended naming conventions for custom methods
+            // Follow Forn's recommended naming conventions for custom methods
             let name = format!(
                 "{}/{}",
                 whoami::username(),
@@ -156,7 +156,7 @@ fn method_from_string(method_str: String) -> anyhow::Result<california::RawMetho
                 body: contents,
             })
         } else {
-            bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, california couldn't read it)")
+            bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, forn couldn't read it)")
         }
     }
 }
@@ -166,7 +166,7 @@ fn method_from_string(method_str: String) -> anyhow::Result<california::RawMetho
 ///
 /// This returns the number of cards reviewed.
 #[cfg(feature = "cli")]
-fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
+fn drive<'a>(mut driver: forn::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
     use anyhow::{bail, Context};
     use std::{
         fs,
@@ -277,10 +277,10 @@ fn confirm(message: &str) -> anyhow::Result<bool> {
 mod opts {
     use std::path::PathBuf;
 
-    use california::CardType;
+    use forn::CardType;
     use clap::{Parser, Subcommand};
 
-    /// California: a spaced repetition CLI to help you learn stuff
+    /// Forn: a spaced repetition CLI to help you learn stuff
     #[derive(Parser, Debug)]
     #[command(author, version, about, long_about = None)]
     pub struct Args {

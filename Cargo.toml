@@ -1,5 +1,5 @@
 [package]
-name = "california"
+name = "forn"
 version = "0.1.0"
 edition = "2021"
 
@@ -12,7 +12,7 @@ serde_json = "1"
 anyhow = "1"
 rand = "0.8"
 lazy_static = "1"
-rhai = { version = "1.14.0", features = ["serde", "sync", "internals"] }
+rhai = { version = "1.14.0", features = ["serde", "sync"] }
 include_dir = "0.7.3"
 uuid = { version = "1.3.2", features = ["v4", "serde"] }
 
@@ -23,11 +23,11 @@ whoami = { version = "1.4.0", optional = true }
 termion = { version = "2.0.1", optional = true }
 
 [lib]
-name = "california"
+name = "forn"
 path = "src/lib.rs"
 
 [[bin]]
-name = "california"
+name = "forn"
 path = "src/bin/main.rs"
 
 [features]

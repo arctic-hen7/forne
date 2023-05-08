@@ -113,25 +113,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b1ce199063694f33ffb7dd4e0ee620741495c32833cde5aa08f02a0bf96f0c8"
 
 [[package]]
-name = "california"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "fancy-regex",
- "include_dir",
- "lazy_static",
- "rand",
- "rhai",
- "serde",
- "serde_json",
- "termcolor",
- "termion",
- "uuid",
- "whoami",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -248,6 +229,25 @@ checksum = "0678ab2d46fa5195aaf59ad034c083d351377d4af57f3e073c074d0da3e3c766"
 dependencies = [
  "bit-set",
  "regex",
+]
+
+[[package]]
+name = "forn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "fancy-regex",
+ "include_dir",
+ "lazy_static",
+ "rand",
+ "rhai",
+ "serde",
+ "serde_json",
+ "termcolor",
+ "termion",
+ "uuid",
+ "whoami",
 ]
 
 [[package]]

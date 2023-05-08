@@ -12,18 +12,18 @@ use anyhow::Result;
 use fancy_regex::Regex;
 use rhai::{Dynamic, Engine, EvalAltResult};
 
-/// A California engine, which can act as the backend for learn operations. An instance of this `struct` should be
+/// A Forn engine, which can act as the backend for learn operations. An instance of this `struct` should be
 /// instantiated with a [`Set`] to operate on and an operation to perform.
 ///
 /// The engine has the same lifetime as the reference it is given to its interface for communicating with the host
 /// environment.
-pub struct California {
+pub struct Forn {
     /// The set being operated on.
     set: Set,
     /// A Rhai scripting engine used to compile and execute the scripts that drive adapters and learning methods.
     rhai_engine: Engine,
 }
-impl California {
+impl Forn {
     /// Creates a new set from the given source file text and adapter script. This is a thin wrapper over the `Set::new_with_adapter`
     /// method, abstracting away the internal use of a Rhai engine. In general, you should prefer this method, as there is no additional
     /// overhead to using it.
@@ -36,7 +36,7 @@ impl California {
             rhai_engine: engine,
         })
     }
-    /// Creates a new California engine. While not inherently expensive, this should generally only be called once, or when
+    /// Creates a new Forn engine. While not inherently expensive, this should generally only be called once, or when
     /// the system needs to restart.
     pub fn from_set(set: Set) -> Self {
         Self {
@@ -82,7 +82,7 @@ impl California {
         self.set.reset_test();
     }
 
-    /// Creates a Rhai engine with the utilities California provides all pre-registered.
+    /// Creates a Rhai engine with the utilities Forn provides all pre-registered.
     fn create_engine() -> Engine {
         let mut engine = Engine::new();
         // Regex utilities (with support for backreferences etc.)
