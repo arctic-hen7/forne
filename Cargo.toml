@@ -38,6 +38,7 @@ name = "forne"
 path = "src/bin/main.rs"
 
 [features]
+default = [ "cli" ] # Necessary because we can't have binary-only features
 # Enable dependencies and features for the CLI only. This unfortunately has to pollute the library, because Cargo does not support
 # separate binary dependencies.
 cli = ["clap", "whoami", "termcolor", "crossterm"]

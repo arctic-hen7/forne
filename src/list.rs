@@ -7,7 +7,7 @@ impl Set {
     /// Lists all the terms in the set of the given type, returning them as pairs of questions and answers.
     ///
     /// *Note: it is deliberately impossible to return card metadata through the traditional interface, and one should
-    /// independently process that if this is required. The generical philosophy of Forn is not to interact with
+    /// independently process that if this is required. The generical philosophy of Forne is not to interact with
     /// the method-specific metadata whenever possible, however.*
     pub fn list(&self, ty: CardType) -> Vec<SlimCard> {
         self.cards

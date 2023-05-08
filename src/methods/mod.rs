@@ -169,7 +169,7 @@ impl RawMethod {
     ///
     /// This will panic if compiling an inbuilt method fails, as this would be a bug in Forne. Any other failure will be
     /// gracefully returned as an error.
-    pub fn into_method(self, engine: &Engine) -> Result<Method<'_>> {
+    pub(crate) fn into_method(self, engine: &Engine) -> Result<Method<'_>> {
         match self {
             Self::Inbuilt(name) => Method::from_inbuilt(&name, engine),
             Self::Custom { name, body } => Method::from_custom(&name, &body, engine),

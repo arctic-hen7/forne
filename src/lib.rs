@@ -1,3 +1,5 @@
+#![doc = include_str!("../README.md")]
+
 mod adapters;
 mod driver;
 mod list;
