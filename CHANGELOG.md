@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.1.0-rc.2](https://github.com/arctic-hen7/forne/compare/v0.1.0-rc.1...v0.1.0-rc.2) (2023-05-08)
+
 ## 0.1.0-rc.1 (2023-05-08)
 
 
