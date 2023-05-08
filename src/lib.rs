@@ -1,15 +1,15 @@
-mod methods;
 mod adapters;
-mod set;
-mod list;
 mod driver;
+mod list;
+mod methods;
+mod set;
 
 pub use driver::Driver;
-pub use set::*;
 pub use methods::RawMethod;
+pub use set::*;
 
-use rhai::Engine;
 use anyhow::Result;
+use rhai::Engine;
 
 /// A California engine, which can act as the backend for learn operations. An instance of this `struct` should be
 /// instantiated with a [`Set`] to operate on and an operation to perform.
@@ -88,4 +88,3 @@ impl California {
         engine
     }
 }
-

@@ -1,6 +1,6 @@
-use anyhow::{Result, Context, bail, anyhow};
-use include_dir::{Dir, include_dir};
-use rhai::{Dynamic, Scope, Engine, AST, Array};
+use anyhow::{anyhow, bail, Context, Result};
+use include_dir::{include_dir, Dir};
+use rhai::{Array, Dynamic, Engine, Scope, AST};
 
 /// The `src/methods` directory that includes this file.
 static METHODS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/methods");
@@ -26,7 +26,9 @@ pub struct Method<'e> {
     /// as difficult, returns new metadata and whether or not the card should now be marked as difficult.
     ///
     /// Note that learn runs do not have the authority to mark cards as starred, or even determine whether or not they are.
-    pub adjust_card: Box<dyn Fn(String, Dynamic, bool) -> Result<(Dynamic, bool)> + Send + Sync + 'e>,
+    #[allow(clippy::type_complexity)]
+    pub adjust_card:
+        Box<dyn Fn(String, Dynamic, bool) -> Result<(Dynamic, bool)> + Send + Sync + 'e>,
     /// A closure that produces the default metadata for this method. This is used when a new set is created for
     /// this method to initialise all its cards with metadata that is appropriate to this method. Generally,
     /// methods should keep this as small as possible to minimise the size of sets on-disk.
@@ -52,7 +54,9 @@ impl<'e> Method<'e> {
             .unwrap()
             .contents_utf8()
             .expect("inbuilt method should be utf-8");
-        let ast = engine.compile(script).expect("inbuilt method should not panic on compilation (this is a bug in california!)");
+        let ast = engine.compile(script).expect(
+            "inbuilt method should not panic on compilation (this is a bug in california!)",
+        );
         let method = Self::from_ast(method_name, ast, engine)?;
 
         Ok(method)
@@ -64,7 +68,9 @@ impl<'e> Method<'e> {
     /// This will return an error if compiling the provided script fails, or if it does not contain the required elements. See the documentation
     /// of custom methods for details of what these elements are.
     fn from_custom(method_name: &str, method_script: &str, engine: &'e Engine) -> Result<Self> {
-        let ast = engine.compile(method_script).with_context(|| "compiling custom method script failed")?;
+        let ast = engine
+            .compile(method_script)
+            .with_context(|| "compiling custom method script failed")?;
         let method = Self::from_ast(method_name, ast, engine)?;
 
         Ok(method)
@@ -82,7 +88,16 @@ impl<'e> Method<'e> {
         let ast2 = ast.clone();
         let ast3 = ast.clone();
         let get_weight = Box::new(move |method_data, difficult| {
-            engine.call_fn(&mut Scope::new(), &ast, "get_weight", (method_data, difficult)).with_context(|| "failed to get weight for card (this is a bug in the selected learning method)")
+            engine
+                .call_fn(
+                    &mut Scope::new(),
+                    &ast,
+                    "get_weight",
+                    (method_data, difficult),
+                )
+                .with_context(|| {
+                    "failed to get weight for card (this is a bug in the selected learning method)"
+                })
         });
         let adjust_card = Box::new(move |res, method_data, difficult| {
             let res: Array = engine.call_fn(&mut Scope::new(), &ast1, "adjust_card", (res, method_data, difficult)).with_context(|| "failed to adjust card data for last card (this is a bug in the selected learning method)")?;
@@ -119,11 +134,9 @@ impl<'e> Method<'e> {
     }
     /// Determines if the given method name is inbuilt. This may be unwittingly provided a full method script as well.
     fn is_inbuilt(method: &str) -> bool {
-        METHODS
-            .files()
-            .any(|file| {
-                file.path().file_name().unwrap().to_string_lossy() == method.to_string() + ".rhai"
-            })
+        METHODS.files().any(|file| {
+            file.path().file_name().unwrap().to_string_lossy() == method.to_string() + ".rhai"
+        })
     }
 }
 
@@ -156,7 +169,7 @@ impl RawMethod {
     ///
     /// This will panic if compiling an inbuilt method fails, as this would be a bug in California. Any other failure will be
     /// gracefully returned as an error.
-    pub fn into_method<'e>(self, engine: &'e Engine) -> Result<Method<'e>> {
+    pub fn into_method(self, engine: &Engine) -> Result<Method<'_>> {
         match self {
             Self::Inbuilt(name) => Method::from_inbuilt(&name, engine),
             Self::Custom { name, body } => Method::from_custom(&name, &body, engine),

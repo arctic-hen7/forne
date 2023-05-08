@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use rhai::Dynamic;
-use serde::{Serialize, Deserialize};
 use anyhow::Result;
+use rhai::Dynamic;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 /// A single key-value pair that represents an element in the set.
@@ -89,7 +89,7 @@ impl Set {
     }
     /// Loads this set from the given JSON.
     pub fn from_json(json: &str) -> Result<Self> {
-        let set = serde_json::from_str(&json)?;
+        let set = serde_json::from_str(json)?;
         Ok(set)
     }
     /// Resets all cards in a learn back to the default metadata values prescribed by the learning method.

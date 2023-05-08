@@ -1,4 +1,7 @@
-use crate::{set::{Set, CardType}, SlimCard};
+use crate::{
+    set::{CardType, Set},
+    SlimCard,
+};
 
 impl Set {
     /// Lists all the terms in the set of the given type, returning them as pairs of questions and answers.
@@ -10,9 +13,9 @@ impl Set {
         self.cards
             .values()
             .filter(|card| {
-                ty == CardType::All ||
-                    (ty == CardType::Difficult && card.difficult) ||
-                    (ty == CardType::Starred && card.starred)
+                ty == CardType::All
+                    || (ty == CardType::Difficult && card.difficult)
+                    || (ty == CardType::Starred && card.starred)
             })
             .map(|card| SlimCard {
                 question: card.question.to_string(),

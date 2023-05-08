@@ -4,18 +4,25 @@ compile_error!("the cli binary must be built with the `cli` feature flag");
 
 #[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
-    use std::fs;
     use anyhow::Context;
+    use california::{California, Set};
     use clap::Parser;
     use opts::{Args, Command};
-    use california::{California, Set};
+    use std::fs;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
     let args = Args::parse();
     match args.command {
-        Command::New { input, output, adapter, method } => {
-            let contents = fs::read_to_string(input).with_context(|| "failed to read from source file")?;
-            let adapter_script = fs::read_to_string(adapter).with_context(|| "failed to read adapter script")?;
+        Command::New {
+            input,
+            output,
+            adapter,
+            method,
+        } => {
+            let contents =
+                fs::read_to_string(input).with_context(|| "failed to read from source file")?;
+            let adapter_script =
+                fs::read_to_string(adapter).with_context(|| "failed to read adapter script")?;
             let method = method_from_string(method)?;
 
             let california = California::new_set(contents, &adapter_script, method)?;
@@ -23,9 +30,16 @@ fn main() -> anyhow::Result<()> {
             fs::write(output, json).with_context(|| "failed to write new set to output file")?;
 
             println!("New set created!");
-        },
-        Command::Learn { set: set_file, method, ty, count, reset } => {
-            let json = fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
+        }
+        Command::Learn {
+            set: set_file,
+            method,
+            ty,
+            count,
+            reset,
+        } => {
+            let json =
+                fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
             let mut california = California::from_set(set);
             let method = method_from_string(method)?;
@@ -34,18 +48,29 @@ fn main() -> anyhow::Result<()> {
             } else {
                 println!("Continuing with previous progress...");
             }
-            let mut driver = california
-                .learn(method)?;
+            let mut driver = california.learn(method)?;
             driver.set_target(ty);
             if let Some(count) = count {
                 driver.set_max_count(count);
             }
 
             let num_reviewed = drive(driver, &set_file)?;
-            println!("\nLearn session complete! You reviewed {} card(s).", num_reviewed);
-        },
-        Command::Test { set: set_file, static_test, no_star, no_unstar, ty, count, reset } => {
-            let json = fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
+            println!(
+                "\nLearn session complete! You reviewed {} card(s).",
+                num_reviewed
+            );
+        }
+        Command::Test {
+            set: set_file,
+            static_test,
+            no_star,
+            no_unstar,
+            ty,
+            count,
+            reset,
+        } => {
+            let json =
+                fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
             let mut california = California::from_set(set);
             if reset && confirm("Are you sure you want to reset your test progress?")? {
@@ -53,8 +78,7 @@ fn main() -> anyhow::Result<()> {
             } else {
                 println!("Continuing with previous progress...");
             }
-            let mut driver = california
-                .test();
+            let mut driver = california.test();
             driver.set_target(ty);
             if let Some(count) = count {
                 driver.set_max_count(count);
@@ -69,8 +93,7 @@ fn main() -> anyhow::Result<()> {
 
             let num_reviewed = drive(driver, &set_file)?;
             println!("\nTest complete! You reviewed {} card(s).", num_reviewed);
-
-        },
+        }
         Command::List { set, ty } => {
             let json = fs::read_to_string(set).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
@@ -85,9 +108,11 @@ fn main() -> anyhow::Result<()> {
             let list = set.list(ty);
             for card in list.iter() {
                 stdout.set_color(&yellow)?;
-                println!("{}Q: {}", if card.starred {
-                    "⦿ "
-                } else { "" }, card.question);
+                println!(
+                    "{}Q: {}",
+                    if card.starred { "⦿ " } else { "" },
+                    card.question
+                );
                 stdout.set_color(&green)?;
                 println!("A: {}", card.answer);
                 stdout.reset()?;
@@ -98,7 +123,7 @@ fn main() -> anyhow::Result<()> {
                     println!("---");
                 }
             }
-        },
+        }
     };
 
     Ok(())
@@ -110,9 +135,9 @@ fn main() -> anyhow::Result<()> {
 /// For custom scripts, this will make their name be the filename of the script with the current user's username prefixed.
 #[cfg(feature = "cli")]
 fn method_from_string(method_str: String) -> anyhow::Result<california::RawMethod> {
-    use std::{path::PathBuf, fs};
     use anyhow::bail;
     use california::RawMethod;
+    use std::{fs, path::PathBuf};
 
     if RawMethod::is_inbuilt(&method_str) {
         Ok(RawMethod::Inbuilt(method_str))
@@ -121,10 +146,14 @@ fn method_from_string(method_str: String) -> anyhow::Result<california::RawMetho
         let method_path = PathBuf::from(&method_str);
         if let Ok(contents) = fs::read_to_string(&method_path) {
             // Follow California's recommended naming conventions for custom methods
-            let name = format!("{}/{}", whoami::username(), method_path.file_name().unwrap().to_string_lossy());
+            let name = format!(
+                "{}/{}",
+                whoami::username(),
+                method_path.file_name().unwrap().to_string_lossy()
+            );
             Ok(RawMethod::Custom {
                 name,
-                body: contents
+                body: contents,
             })
         } else {
             bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, california couldn't read it)")
@@ -138,8 +167,11 @@ fn method_from_string(method_str: String) -> anyhow::Result<california::RawMetho
 /// This returns the number of cards reviewed.
 #[cfg(feature = "cli")]
 fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
-    use std::{io::{self, Write}, fs};
     use anyhow::{bail, Context};
+    use std::{
+        fs,
+        io::{self, Write},
+    };
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
     let mut yellow = ColorSpec::new();
@@ -154,12 +186,16 @@ fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::
     while let Some(card) = card_option {
         // Save the set quickly
         let json = driver.save_set_to_json()?;
-        fs::write(set_file, json).with_context(|| "failed to save set to json (progress up to the previous card was saved though)")?;
+        fs::write(set_file, json).with_context(|| {
+            "failed to save set to json (progress up to the previous card was saved though)"
+        })?;
 
         stdout.set_color(&yellow)?;
-        print!("{}Q: {}", if card.starred {
-            "⦿ "
-        } else { "" }, card.question);
+        print!(
+            "{}Q: {}",
+            if card.starred { "⦿ " } else { "" },
+            card.question
+        );
         stdout.flush()?;
         // Wait for the user to press enter
         let res = stdin.read_line(&mut String::new());
@@ -182,7 +218,7 @@ fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::
             let mut input = String::new();
             match stdin.read_line(&mut input) {
                 Ok(_) => {
-                    let input = input.strip_suffix("\n").unwrap_or(input.as_str());
+                    let input = input.strip_suffix('\n').unwrap_or(input.as_str());
                     if driver.allowed_responses().iter().any(|x| x == input) {
                         break input.to_string();
                     } else {
@@ -202,15 +238,17 @@ fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::
     stdout.reset()?;
 
     let json = driver.save_set_to_json()?;
-    fs::write(set_file, json).with_context(|| "failed to save set to json (progress up to the previous card was saved though)")?;
+    fs::write(set_file, json).with_context(|| {
+        "failed to save set to json (progress up to the previous card was saved though)"
+    })?;
     Ok(driver.get_count())
 }
 
 /// Asks the user to confirm something with the given message.
 #[cfg(feature = "cli")]
 fn confirm(message: &str) -> anyhow::Result<bool> {
-    use std::io::{self, Write};
     use anyhow::bail;
+    use std::io::{self, Write};
 
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -219,7 +257,7 @@ fn confirm(message: &str) -> anyhow::Result<bool> {
     let mut input = String::new();
     let res = match stdin.read_line(&mut input) {
         Ok(_) => {
-            let input = input.strip_suffix("\n").unwrap_or(&input);
+            let input = input.strip_suffix('\n').unwrap_or(&input);
             if input == "y" {
                 true
             } else if input == "n" {
@@ -317,7 +355,6 @@ mod opts {
     }
 }
 
-
 /*
 lazy_static! {
     static ref METHODS: HashMap<String, Method> = {
@@ -385,55 +422,54 @@ lazy_static! {
 
 // fn _main() -> Result<()> {
 
+// Ok(())
 
-    // Ok(())
+// let args = std::env::args().collect::<Vec<String>>();
+// let op = match args.get(1) {
+//     Some(op) => op,
+//     None => bail!("you must provide an operation to perform"),
+// };
+// if op == "create" {
+//     let filename = match args.get(2) {
+//         Some(f) => f,
+//         None => bail!("you must provide a filename to create the set from"),
+//     };
+//     let output = match args.get(3) {
+//         Some(o) => o,
+//         None => bail!("you must provide an output file to output this set to"),
+//     };
 
-    // let args = std::env::args().collect::<Vec<String>>();
-    // let op = match args.get(1) {
-    //     Some(op) => op,
-    //     None => bail!("you must provide an operation to perform"),
-    // };
-    // if op == "create" {
-    //     let filename = match args.get(2) {
-    //         Some(f) => f,
-    //         None => bail!("you must provide a filename to create the set from"),
-    //     };
-    //     let output = match args.get(3) {
-    //         Some(o) => o,
-    //         None => bail!("you must provide an output file to output this set to"),
-    //     };
+//     let set = Set::from_org(&filename)?;
+//     set.save_to_json(output)?;
+// } else if op == "run" {
+//     let filename = match args.get(2) {
+//         Some(f) => f,
+//         None => bail!("you must provide a filename to create the set from"),
+//     };
+//     let method = match args.get(3) {
+//         Some(m) => m,
+//         None => bail!("you must provide a run method to use"),
+//     };
+//     // If provided, limit the number of terms studied in any one go to a count
+//     let count: Option<u32> = args.get(4).map(|x| x.parse().unwrap());
+//     let mut set = Set::from_json(&filename)?;
 
-    //     let set = Set::from_org(&filename)?;
-    //     set.save_to_json(output)?;
-    // } else if op == "run" {
-    //     let filename = match args.get(2) {
-    //         Some(f) => f,
-    //         None => bail!("you must provide a filename to create the set from"),
-    //     };
-    //     let method = match args.get(3) {
-    //         Some(m) => m,
-    //         None => bail!("you must provide a run method to use"),
-    //     };
-    //     // If provided, limit the number of terms studied in any one go to a count
-    //     let count: Option<u32> = args.get(4).map(|x| x.parse().unwrap());
-    //     let mut set = Set::from_json(&filename)?;
+//     // Invoke the command loop, but save the set before propagating errors
+//     let res = command_loop(&mut set, method, count);
+//     set.save_to_json(&filename)?;
+//     println!("Set saved.");
+//     res?;
 
-    //     // Invoke the command loop, but save the set before propagating errors
-    //     let res = command_loop(&mut set, method, count);
-    //     set.save_to_json(&filename)?;
-    //     println!("Set saved.");
-    //     res?;
+// } else if op == "methods" {
+//     for (idx, method) in METHODS.keys().enumerate() {
+//         println!("{}. {}", idx + 1, method);
+//     }
+// } else {
+//     bail!("invalid operation");
+// }
 
-    // } else if op == "methods" {
-    //     for (idx, method) in METHODS.keys().enumerate() {
-    //         println!("{}. {}", idx + 1, method);
-    //     }
-    // } else {
-    //     bail!("invalid operation");
-    // }
-
-    // println!("Goodbye!");
-    // Ok(())
+// println!("Goodbye!");
+// Ok(())
 // }
 /*
 fn command_loop(set: &mut Set, method: &str, count: Option<u32>) -> Result<()> {
