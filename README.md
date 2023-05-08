@@ -14,14 +14,14 @@ There are plenty of spaced repetition apps out there: Anki, Quizlet, SuperMemo, 
 
 Let's be realistic: if we're learning stuff purely for our own interests, then spaced repetition might work superbly for us, but, if there's a test coming up at the end of term, we probably won't get everything done just right, because life happens. If you're using Anki and you have a test coming up, best of luck to you, because cramming the last few terms and reviewing everything rapidly is a pain. Using an app like Quizlet is the opposite: unless you're prepared to cough up for the paid version, you'll be stuck with an algorithm that qualifies as spaced repetition only in fairyland.
 
-The bottom line here is that we need a system that can do both: that can let you learn in the long-term and also help you cram terms for tests, while letting you test yourself on all the terms in a set, keepign track of the ones you find difficult. And, it should be able to be synced between your devices however you like to sync things, without requiring you to have an account with some third-party, and without locking you in to some service that will probably eventually go bust anyway.
+The bottom line here is that we need a system that can do both: that can let you learn in the long-term and also help you cram terms for tests, while letting you test yourself on all the terms in a set, keeping track of the ones you find difficult. And, it should be able to be synced between your devices however you like to sync things, without requiring you to have an account with some third-party, and without locking you in to some service that will probably eventually go bust anyway.
 
 Forn is designed to solve these problems by being fully scriptable in two ways:
 
 1. You can write custom programs in a simple scripting language to import your notes into Forn for review, and
 2. You can write and tweak custom learning algorithms.
 
-By default, Forn comes with a small (but growing) library of spaced repetition and cramming algorithms, which can be used for any set imported into the program (although once you create a set, it will be locked to the chosen method, and you'll have to create another version of it if you want to use a different method). These learning methods can store their own arbitrary data about every single term in your set, and they can execute arbitrary (but securely sandboxed) code, meaning you can implement everything from a simple "show it twice and she'll be right" algorithm to a scientifically-backed artifically intelligent algorithm.
+By default, Forn comes with a small (but growing) library of spaced repetition and cramming algorithms, which can be used for any set imported into the program (although once you create a set, it will be locked to the chosen method, and you'll have to create another version of it if you want to use a different method). These learning methods can store their own arbitrary data about every single term in your set, and they can execute arbitrary (but securely sandboxed) code, meaning you can implement everything from a simple "show it twice and she'll be right" algorithm to a scientifically-backed artificially intelligent algorithm.
 
 ## Installation
 
@@ -77,7 +77,7 @@ One complication of the test system is that, if you get a card right, and it was
 
 ## Adapters
 
-The first hurdle to using Forn is importing your set into it. Forn accepts a list of question/answer pairs, but this doesn't mean it can't be used for more exotic use-cases, like a three-language set. Because Forn lets you write your own importing logic, you can very easily take something like a three-way term and turn it into six separate cards (each one going to each other each way) trivially. This also allows things like cloze terms to be supported easily, and in a way that works for you. Califoria provides a very simple mechanism to display terms and help you learn them: you control exactly how they're created.
+The first hurdle to using Forn is importing your set into it. Forn accepts a list of question/answer pairs, but this doesn't mean it can't be used for more exotic use-cases, like a three-language set. Because Forn lets you write your own importing logic, you can very easily take something like a three-way term and turn it into six separate cards (each one going to each other each way) trivially. This also allows things like cloze terms to be supported easily, and in a way that works for you. Forn provides a very simple mechanism to display terms and help you learn them: you control exactly how they're created.
 
 Adapters are written in [Rhai](rhai.rs), a simple Rust-like scripting language, and they're pretty easy to write! If you've never done any programming before, you might want to enlist the help of ChatGPT, armed with our [examples of common adapters](https://github.com/arctic-hen7/forn/tree/main/common_adapters), otherwise, go crazy! All adapters are written as simple scripts, which will be have a constant string `SOURCE`, the contents of the given source file, available, and they are expected to return an array of question/answer pairs (e.g. `[["foo", "bar"], ["q", "a"]]`). Most of the time, you can do this with a regular expression, and Forn furnishes you with several utilities for working with regexps:
 
@@ -95,7 +95,7 @@ return regexp_to_pairs(`my-regexp-here`, SOURCE);
 
 Note that we put the regular expression in backticks to avoid any escape characters. We recommend <https://regex101.com> for testing your regular expressions, and non-technical (and technical!) users should be aware that ChatGPT is unreasonably good at producing regular expressions, and even at creating questions from your notes!
 
-For further documentation about the Rhai language, you can refer to the [Rhai book](https://rhai.rs/book), in particular the section on [string manipulation](https://rhai.rs/book/ref/string-fn.html). And, if you need any help writing your own adapter, don't hestitate to open a [new discussion] and ask us, we'll be happy to give you a hand!
+For further documentation about the Rhai language, you can refer to the [Rhai book](https://rhai.rs/book), in particular the section on [string manipulation](https://rhai.rs/book/ref/string-fn.html). And, if you need any help writing your own adapter, don't hesitate to open a [new discussion](https://github.com/arctic-hen7/forn/discussions/new/choose) and ask us, we'll be happy to give you a hand!
 
 ## Methods
 
@@ -103,7 +103,7 @@ Learning methods are similar to adapters in a lot of ways, except that Forn has 
 
 Method scripts are a little more complicated than adapter scripts, as they need to have a few key elements for Forn to understand them:
 
-1. A `const RESPONSES` array at the start. This should contain all the premissible responses the user can make to a card. For example, the `speed-v1` method uses `const RESPONSES = ["y", "n"];`, meaning the user can either say `y` or `n` when they are told the right answer to a card. Your own methods may define as many responses as they want, and the user will be prompted about which one they wish to choose.
+1. A `const RESPONSES` array at the start. This should contain all the permissible responses the user can make to a card. For example, the `speed-v1` method uses `const RESPONSES = ["y", "n"];`, meaning the user can either say `y` or `n` when they are told the right answer to a card. Your own methods may define as many responses as they want, and the user will be prompted about which one they wish to choose.
 2. A function `get_weight(data, difficult) -> f64`. This function takes in the custom method data (which can be literally whatever the heck you want) and whether or not the card in question is currently marked as difficult, and asks you to return a weight for it, which should be a floating-point (i.e. decimal) number. The probability that any one card will be selected is then this weight divided by the sum of all card weights.
 3. A function `adjust_card(response, data, difficult) -> [..., bool]`, which takes in the user's response to a card (guaranteed to be one of the ones you defined in `const RESPONSES`), the card's data, and whether or not it is marked as difficult. It should return the new data (this is where you update the properties that you use to determine a card's weight) and whether or not the card should now be marked as difficult. Note that the meaning of 'difficult' is entirely method-dependent, and it is simply one of the ways Forn lets users see how they're doing with their sets.
 4. A function `get_default_metadata() -> ...`, which should return the default values you want to use for a card's `data`.
@@ -132,13 +132,13 @@ fn get_default_metadata() {
 
 This method stores an object with one property, `weight`, for each card, which is `1.0` by default, incrementing it by `0.5` every time the user gets the card wrong, or decrementing it by `0.5` if the user gets it right. This method will never mark a card as difficult. The biggest 'gotcha' when using Rhai is usually the need for a hash sign (`#`) before writing out an object!
 
-As with custom adapters, writing your own learning method can be challenging, and you're more than welcome to open [a discussion] and ask us any questions you might have, and we'll be happy to help!
+As with custom adapters, writing your own learning method can be challenging, and you're more than welcome to open [a discussion](https://github.com/arctic-hen7/forn/discussions/new/choose) and ask us any questions you might have, and we'll be happy to help!
 
 *A final note: plugging this section of the readme into ChatGPT and asking it to write your learning method for you will generally produce workable results, although it doesn't understand Forn perfectly, so you might need to make some minor adjustments. Feel free to ask us in a discussion if you have any questions!*
  
 ### Contributing custom methods
 
-Forn's mission is to make learning content the easy part of learning, and this requires supporting as many learning methods out of the box as possible. Eventually, people should be able to get a custom adapter off the internet in a jiffy, and they should never need to touch a learning method unless they want to tweak it, because there should be an ample library of alternatives within Forn. To this end, if you've tweaked an inbuilt learning algorithm in a useful way, or if you've written your own from scratch, please submit it through a [pull request] for inclusion in Forn! Provided it works and is far enough from one of the existing inbuilt methods, we're pretty likely to accept it!
+Forn's mission is to make learning content the easy part of learning, and this requires supporting as many learning methods out of the box as possible. Eventually, people should be able to get a custom adapter off the internet in a jiffy, and they should never need to touch a learning method unless they want to tweak it, because there should be an ample library of alternatives within Forn. To this end, if you've tweaked an inbuilt learning algorithm in a useful way, or if you've written your own from scratch, please submit it through a [pull request](https://github.com/arctic-hen7/forn/pulls) for inclusion in Forn! Provided it works and is far enough from one of the existing inbuilt methods, we're pretty likely to accept it!
 
 Also, if you happen to be researching the science of learning, we'd love to hear from you, and we'd love to help implement your research in practical terms through Forn! Feel free to email the maintainer, [`arctic-hen7`](https://github.com/arctic-hen7) (you'll need to be logged into GitHub to see the email address), to discuss further!
 
