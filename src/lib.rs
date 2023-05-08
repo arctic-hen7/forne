@@ -9,7 +9,8 @@ pub use methods::RawMethod;
 pub use set::*;
 
 use anyhow::Result;
-use rhai::Engine;
+use fancy_regex::Regex;
+use rhai::{Dynamic, Engine, EvalAltResult};
 
 /// A California engine, which can act as the backend for learn operations. An instance of this `struct` should be
 /// instantiated with a [`Set`] to operate on and an operation to perform.
@@ -83,8 +84,54 @@ impl California {
 
     /// Creates a Rhai engine with the utilities California provides all pre-registered.
     fn create_engine() -> Engine {
-        // TODO regexp utilities
-        let engine = Engine::new();
+        let mut engine = Engine::new();
+        // Regex utilities (with support for backreferences etc.)
+        engine.register_fn("is_match", |regex: String, text: String| {
+            let re = Regex::new(&regex).map_err(|_| "")?;
+            let is_match = re.is_match(&text).map_err(|_| "")?;
+            Ok::<_, Box<EvalAltResult>>(Dynamic::from_bool(is_match))
+        });
+        engine.register_fn("matches", |regex: &str, text: &str| {
+            let re = Regex::new(regex).map_err(|_| "invalid regex")?;
+            let mut matches = Vec::new();
+            for m in re.find_iter(text) {
+                let m = m.map_err(|_| "")?.as_str();
+                matches.push(Dynamic::from(m.to_string()));
+            }
+            Ok::<_, Box<EvalAltResult>>(Dynamic::from_array(matches))
+        });
+        engine.register_fn("captures", |regex: &str, text: &str| {
+            let re = Regex::new(regex).unwrap();
+            let mut capture_groups = Vec::new();
+            for raw_caps in re.captures_iter(text) {
+                let raw_caps = raw_caps.map_err(|_| "")?;
+                let mut caps = Vec::new();
+                for cap in raw_caps.iter() {
+                    let cap = cap.ok_or("")?.as_str();
+                    caps.push(Dynamic::from(cap.to_string()));
+                }
+                capture_groups.push(Dynamic::from_array(caps));
+            }
+
+            Ok::<_, Box<EvalAltResult>>(Dynamic::from_array(capture_groups))
+        });
+        engine.register_fn(
+            "replace_one",
+            |regex: &str, replacement: &str, text: &str| {
+                let re = Regex::new(regex).unwrap();
+                let result = re.replace(text, replacement).into_owned();
+                Ok::<_, Box<EvalAltResult>>(Dynamic::from(result))
+            },
+        );
+        engine.register_fn(
+            "replace_all",
+            |regex: &str, replacement: &str, text: &str| {
+                let re = Regex::new(regex).unwrap();
+                let result = re.replace_all(text, replacement).into_owned();
+                Ok::<_, Box<EvalAltResult>>(Dynamic::from(result))
+            },
+        );
+
         engine
     }
 }
