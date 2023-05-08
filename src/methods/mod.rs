@@ -54,9 +54,9 @@ impl<'e> Method<'e> {
             .unwrap()
             .contents_utf8()
             .expect("inbuilt method should be utf-8");
-        let ast = engine.compile(script).expect(
-            "inbuilt method should not panic on compilation (this is a bug in forne!)",
-        );
+        let ast = engine
+            .compile(script)
+            .expect("inbuilt method should not panic on compilation (this is a bug in forne!)");
         let method = Self::from_ast(method_name, ast, engine)?;
 
         Ok(method)

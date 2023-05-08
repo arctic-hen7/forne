@@ -5,8 +5,8 @@ compile_error!("the cli binary must be built with the `cli` feature flag");
 #[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
     use anyhow::Context;
-    use forne::{Forne, Set};
     use clap::Parser;
+    use forne::{Forne, Set};
     use opts::{Args, Command};
     use std::fs;
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -277,8 +277,8 @@ fn confirm(message: &str) -> anyhow::Result<bool> {
 mod opts {
     use std::path::PathBuf;
 
-    use forne::CardType;
     use clap::{Parser, Subcommand};
+    use forne::CardType;
 
     /// Forne: a spaced repetition CLI to help you learn stuff
     #[derive(Parser, Debug)]

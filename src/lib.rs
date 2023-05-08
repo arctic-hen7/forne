@@ -87,27 +87,27 @@ impl Forne {
         let mut engine = Engine::new();
         // Regex utilities (with support for backreferences etc.)
         engine.register_fn("is_match", |regex: String, text: String| {
-            let re = Regex::new(&regex).map_err(|_| "")?;
-            let is_match = re.is_match(&text).map_err(|_| "")?;
+            let re = Regex::new(&regex).map_err(|e| e.to_string())?;
+            let is_match = re.is_match(&text).map_err(|e| e.to_string())?;
             Ok::<_, Box<EvalAltResult>>(Dynamic::from_bool(is_match))
         });
         engine.register_fn("matches", |regex: &str, text: &str| {
-            let re = Regex::new(regex).map_err(|_| "invalid regex")?;
+            let re = Regex::new(regex).map_err(|e| e.to_string())?;
             let mut matches = Vec::new();
             for m in re.find_iter(text) {
-                let m = m.map_err(|_| "")?.as_str();
+                let m = m.map_err(|e| e.to_string())?.as_str();
                 matches.push(Dynamic::from(m.to_string()));
             }
             Ok::<_, Box<EvalAltResult>>(Dynamic::from_array(matches))
         });
         engine.register_fn("captures", |regex: &str, text: &str| {
-            let re = Regex::new(regex).unwrap();
+            let re = Regex::new(regex).map_err(|e| e.to_string())?;
             let mut capture_groups = Vec::new();
             for raw_caps in re.captures_iter(text) {
-                let raw_caps = raw_caps.map_err(|_| "")?;
+                let raw_caps = raw_caps.map_err(|e| e.to_string())?;
                 let mut caps = Vec::new();
                 for cap in raw_caps.iter() {
-                    let cap = cap.ok_or("")?.as_str();
+                    let cap = cap.ok_or("invalid capture found")?.as_str();
                     caps.push(Dynamic::from(cap.to_string()));
                 }
                 capture_groups.push(Dynamic::from_array(caps));
@@ -118,7 +118,7 @@ impl Forne {
         engine.register_fn(
             "replace_one",
             |regex: &str, replacement: &str, text: &str| {
-                let re = Regex::new(regex).unwrap();
+                let re = Regex::new(regex).map_err(|e| e.to_string())?;
                 let result = re.replace(text, replacement).into_owned();
                 Ok::<_, Box<EvalAltResult>>(Dynamic::from(result))
             },
@@ -126,7 +126,7 @@ impl Forne {
         engine.register_fn(
             "replace_all",
             |regex: &str, replacement: &str, text: &str| {
-                let re = Regex::new(regex).unwrap();
+                let re = Regex::new(regex).map_err(|e| e.to_string())?;
                 let result = re.replace_all(text, replacement).into_owned();
                 Ok::<_, Box<EvalAltResult>>(Dynamic::from(result))
             },
@@ -134,18 +134,24 @@ impl Forne {
         engine.register_fn(
             "regexp_to_pairs",
             |regex: &str, question_idx: i64, answer_idx: i64, text: &str| {
-                let re = Regex::new(regex).map_err(|_| "")?;
+                let re = Regex::new(regex).map_err(|e| e.to_string())?;
                 let mut pairs = Vec::new();
                 for raw_caps in re.captures_iter(text) {
-                    let raw_caps = raw_caps.map_err(|_| "")?;
-                    let question = raw_caps.get(question_idx as usize).ok_or("")?.as_str();
-                    let answer = raw_caps.get(answer_idx as usize).ok_or("")?.as_str();
+                    let raw_caps = raw_caps.map_err(|e| e.to_string())?;
+                    let question = raw_caps
+                        .get(question_idx as usize)
+                        .ok_or("question index did not exist (did you start from 1?)")?
+                        .as_str();
+                    let answer = raw_caps
+                        .get(answer_idx as usize)
+                        .ok_or("answer index did not exist (did you start from 1?)")?
+                        .as_str();
 
                     pairs.push(Dynamic::from_array(vec![question.into(), answer.into()]));
                 }
 
                 Ok::<_, Box<EvalAltResult>>(Dynamic::from_array(pairs))
-            }
+            },
         );
 
         engine
