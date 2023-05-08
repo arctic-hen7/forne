@@ -24,27 +24,41 @@ fn main() -> anyhow::Result<()> {
 
             println!("New set created!");
         },
-        Command::Learn { set: set_file, method, ty, count } => {
+        Command::Learn { set: set_file, method, ty, count, reset } => {
             let json = fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
             let mut california = California::from_set(set);
             let method = method_from_string(method)?;
+            if reset && confirm("Are you absolutely certain you want to reset your learn progress? This action is IRREVERSIBLE!!!")? {
+                california.reset_learn(method.clone())?;
+            } else {
+                println!("Continuing with previous progress...");
+            }
             let mut driver = california
                 .learn(method)?;
-            driver.set_target(ty)
-                .set_max_count(count);
+            driver.set_target(ty);
+            if let Some(count) = count {
+                driver.set_max_count(count);
+            }
 
             let num_reviewed = drive(driver, &set_file)?;
-            println!("\nLearn session complete! You reviewed {} cards.", num_reviewed);
+            println!("\nLearn session complete! You reviewed {} card(s).", num_reviewed);
         },
-        Command::Test { set: set_file, static_test, no_star, no_unstar, ty, count } => {
+        Command::Test { set: set_file, static_test, no_star, no_unstar, ty, count, reset } => {
             let json = fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
             let mut california = California::from_set(set);
+            if reset && confirm("Are you sure you want to reset your test progress?")? {
+                california.reset_test();
+            } else {
+                println!("Continuing with previous progress...");
+            }
             let mut driver = california
                 .test();
-            driver.set_target(ty)
-                .set_max_count(count);
+            driver.set_target(ty);
+            if let Some(count) = count {
+                driver.set_max_count(count);
+            }
             if static_test {
                 driver.no_mark_starred().no_mark_unstarred();
             } else if no_star {
@@ -54,7 +68,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             let num_reviewed = drive(driver, &set_file)?;
-            println!("\nTest complete! You reviewed {} cards.", num_reviewed);
+            println!("\nTest complete! You reviewed {} card(s).", num_reviewed);
 
         },
         Command::List { set, ty } => {
@@ -185,8 +199,40 @@ fn drive<'a>(mut driver: california::Driver<'a, 'a>, set_file: &str) -> anyhow::
         // This will adjust weights etc. and get us a new card, if one exists
         card_option = driver.next(res)?;
     }
+    stdout.reset()?;
 
+    let json = driver.save_set_to_json()?;
+    fs::write(set_file, json).with_context(|| "failed to save set to json (progress up to the previous card was saved though)")?;
     Ok(driver.get_count())
+}
+
+/// Asks the user to confirm something with the given message.
+#[cfg(feature = "cli")]
+fn confirm(message: &str) -> anyhow::Result<bool> {
+    use std::io::{self, Write};
+    use anyhow::bail;
+
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
+    print!("{} [y/n] ", message);
+    stdout.flush()?;
+    let mut input = String::new();
+    let res = match stdin.read_line(&mut input) {
+        Ok(_) => {
+            let input = input.strip_suffix("\n").unwrap_or(&input);
+            if input == "y" {
+                true
+            } else if input == "n" {
+                false
+            } else {
+                println!("Invalid option!");
+                confirm(message)?
+            }
+        }
+        Err(_) => bail!("failed to read from stdin"),
+    };
+
+    Ok(res)
 }
 
 #[cfg(feature = "cli")]
@@ -231,7 +277,10 @@ mod opts {
             ty: CardType,
             /// Limit the number of terms studied to the given amount (useful for consistent long-term learning); your progress will be saved
             #[arg(short, long)]
-            count: u32,
+            count: Option<u32>,
+            /// Starts a new learn session from scratch, irretrievably deleting any progress in a previous session
+            #[arg(long)]
+            reset: bool,
         },
         /// Starts or resumes a test on the given set
         Test {
@@ -252,7 +301,10 @@ mod opts {
             ty: CardType,
             /// Limit the number of terms studied to the given amount (useful for consistent long-term learning); your progress will be saved
             #[arg(short, long)]
-            count: u32,
+            count: Option<u32>,
+            /// Starts a new test from scratch, irretrievably deleting any progress in a previous test
+            #[arg(long)]
+            reset: bool,
         },
         /// Lists all the terms in the given set
         List {
@@ -263,7 +315,6 @@ mod opts {
             ty: CardType,
         },
     }
-
 }
 
 
@@ -596,28 +647,5 @@ impl Set {
     }
 }
 
-/// Asks the user to confirm something with the given message.
-fn confirm(message: &str) -> Result<bool> {
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-    print!("{} [y/n] ", message);
-    stdout.flush()?;
-    let mut input = String::new();
-    let res = match stdin.read_line(&mut input) {
-        Ok(_) => {
-            let input = input.strip_suffix("\n").unwrap_or(&input);
-            if input == "y" {
-                true
-            } else if input == "n" {
-                false
-            } else {
-                println!("Invalid option!");
-                confirm(message)?
-            }
-        }
-        Err(_) => bail!("failed to read from stdin"),
-    };
 
-    Ok(res)
-}
 */

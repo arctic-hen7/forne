@@ -6,7 +6,7 @@ use anyhow::Result;
 use uuid::Uuid;
 
 /// A single key-value pair that represents an element in the set.
-#[derive(Serialize, Deserialize, Clone)] // Only internal cloning
+#[derive(Serialize, Deserialize)]
 pub struct Card {
     /// The prompt the user will be given for this card.
     pub question: String,
@@ -92,10 +92,16 @@ impl Set {
         let set = serde_json::from_str(&json)?;
         Ok(set)
     }
+    /// Resets all cards in a learn back to the default metadata values prescribed by the learning method.
+    pub(crate) fn reset_learn(&mut self, default_data: Dynamic) {
+        for card in self.cards.values_mut() {
+            card.method_data = default_data.clone();
+        }
+    }
     /// Resets all test progress for this set. This is irreversible!
     ///
     /// This will not change whether or not cards are starred.
-    pub fn reset_test(&mut self) {
+    pub(crate) fn reset_test(&mut self) {
         for card in self.cards.values_mut() {
             card.seen_in_test = false;
         }

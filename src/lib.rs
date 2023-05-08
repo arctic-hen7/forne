@@ -67,12 +67,24 @@ impl California {
     pub fn save_set(&self) -> Result<String> {
         self.set.save()
     }
+    /// Resets all cards in a learn session back to the default metadata values prescribed by the learning method.
+    pub fn reset_learn(&mut self, method: RawMethod) -> Result<()> {
+        let method = method.into_method(&self.rhai_engine)?;
+        self.set.reset_learn((method.get_default_metadata)()?);
+
+        Ok(())
+    }
+    /// Resets all test progress for this set. This is irreversible!
+    ///
+    /// This will not change whether or not cards are starred.
+    pub fn reset_test(&mut self) {
+        self.set.reset_test();
+    }
 
     /// Creates a Rhai engine with the utilities California provides all pre-registered.
     fn create_engine() -> Engine {
         // TODO regexp utilities
-        let mut engine = Engine::new();
-        engine.register_type_with_name::<Card>("Card");
+        let engine = Engine::new();
         engine
     }
 }

@@ -1,7 +1,6 @@
-use anyhow::{Result, Context, bail};
+use anyhow::{Result, Context, bail, anyhow};
 use include_dir::{Dir, include_dir};
-use rhai::{Dynamic, Scope, Engine, AST};
-use crate::set::Card;
+use rhai::{Dynamic, Scope, Engine, AST, Array};
 
 /// The `src/methods` directory that includes this file.
 static METHODS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/src/methods");
@@ -16,18 +15,18 @@ pub struct Method<'e> {
     /// A list of responses the user can give after having been shown the answer to a card. These will
     /// be displayed as options in the order they are provided in here.
     pub responses: Vec<String>,
-    /// A closure that, given a card, produces a weight. This weight represents how
-    /// likely the card is to be presented to the user in the next random choice. When a card is finished
+    /// A closure that, given a card's metadata and whether or not it has been marked as difficult, produces a weight.
+    /// This weight represents how likely the card is to be presented to the user in the next random choice. When a card is finished
     /// with, this should be set to 0.0. When all cards have a weight 0.0, the run will naturally terminate.
     ///
     /// Any cards not part of the relevant run target will not be presented to this function in the first
     /// place.
-    pub get_weight: Box<dyn Fn(Card) -> Result<f32> + Send + Sync + 'e>,
-    /// A closure that, given a card and the user's response to it, returns the new dynamic method state and
-    /// whether or not this card should be marked as difficult.
+    pub get_weight: Box<dyn Fn(Dynamic, bool) -> Result<f64> + Send + Sync + 'e>,
+    /// A closure that, given the user's response to a card, the card's metadata, and whether or not the card has been marked
+    /// as difficult, returns new metadata and whether or not the card should now be marked as difficult.
     ///
-    /// Note that learn runs do not have the authority to mark cards as starred.
-    pub adjust_card: Box<dyn Fn(String, Card) -> Result<(Dynamic, bool)> + Send + Sync + 'e>,
+    /// Note that learn runs do not have the authority to mark cards as starred, or even determine whether or not they are.
+    pub adjust_card: Box<dyn Fn(String, Dynamic, bool) -> Result<(Dynamic, bool)> + Send + Sync + 'e>,
     /// A closure that produces the default metadata for this method. This is used when a new set is created for
     /// this method to initialise all its cards with metadata that is appropriate to this method. Generally,
     /// methods should keep this as small as possible to minimise the size of sets on-disk.
@@ -81,25 +80,42 @@ impl<'e> Method<'e> {
         // Extract the closures directly (using the shared engine)
         let ast1 = ast.clone();
         let ast2 = ast.clone();
-        let get_weight = Box::new(move |card| {
-            engine.call_fn(&mut Scope::new(), &ast, "get_weight", (card,)).with_context(|| "failed to get weight for card (this is a bug in the selected learning method)")
+        let ast3 = ast.clone();
+        let get_weight = Box::new(move |method_data, difficult| {
+            engine.call_fn(&mut Scope::new(), &ast, "get_weight", (method_data, difficult)).with_context(|| "failed to get weight for card (this is a bug in the selected learning method)")
         });
-        let adjust_card = Box::new(move |res, card| {
-            engine.call_fn(&mut Scope::new(), &ast1, "adjust_card", (res, card)).with_context(|| "failed to adjust card data for last card (this is a bug in the selected learning method)")
+        let adjust_card = Box::new(move |res, method_data, difficult| {
+            let res: Array = engine.call_fn(&mut Scope::new(), &ast1, "adjust_card", (res, method_data, difficult)).with_context(|| "failed to adjust card data for last card (this is a bug in the selected learning method)")?;
+            let method_data = res.get(0).ok_or(anyhow!("no method data provided from card adjustment (this is a bug in the selected learning method)"))?;
+            let difficult = res.get(1).ok_or(anyhow!("no difficulty boolean provided from card adjustment (this is a bug in the selected learning method)"))?.as_bool().map_err(|_| anyhow!("invalid difficulty boolean provided from card adjustment (this is a bug in the selected learning method)"))?;
+
+            Ok((method_data.clone(), difficult))
         });
         let get_default_metadata = Box::new(move || {
             engine.call_fn(&mut Scope::new(), &ast2, "get_default_metadata", ()).with_context(|| "failed to get default metadata for a new card (this is a bug in the selected learning method)")
         });
 
-        // Assemble all that into a method
-        Ok(Method {
-            name: method_name.to_string(),
-            // TODO
-            responses: Vec::new(),
-            get_weight,
-            adjust_card,
-            get_default_metadata,
-        })
+        // Iterate through all literal constants and find `RESPONSES`
+        let mut responses = None;
+        for (name, _, value) in ast3.iter_literal_variables(true, false) {
+            if name == "RESPONSES" {
+                let value = value.into_typed_array().map_err(|_| anyhow!("required constant `RESPONSES` in method script was not an array of strings"))?;
+                responses = Some(value);
+            }
+        }
+
+        if let Some(responses) = responses {
+            // Assemble all that into a method
+            Ok(Method {
+                name: method_name.to_string(),
+                responses,
+                get_weight,
+                adjust_card,
+                get_default_metadata,
+            })
+        } else {
+            bail!("method script did not define required constant `RESPONSES`");
+        }
     }
     /// Determines if the given method name is inbuilt. This may be unwittingly provided a full method script as well.
     fn is_inbuilt(method: &str) -> bool {
@@ -112,6 +128,7 @@ impl<'e> Method<'e> {
 }
 
 /// A representation of a method that has not yet been created.
+#[derive(Clone, Debug)]
 pub enum RawMethod {
     /// An inbuilt method, with the name attached.
     Inbuilt(String),

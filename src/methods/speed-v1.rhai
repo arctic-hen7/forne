@@ -1,16 +1,16 @@
 const RESPONSES = ["y", "n"];
 
-fn get_weight(card) {
-   return card.method_data.weight;
+fn get_weight(data, difficult) {
+   return data.weight;
 }
-fn adjust_card(res, card) {
+fn adjust_card(res, data, difficult) {
    if res == "y" {
-       card.method_data.weight -= 0.5;
+       data.weight -= 0.5;
    } else {
-       card.method_data.weight += 0.5;
+       data.weight += 0.5;
    }
 
-   return [card, false];
+   return [data, false];
 }
 fn get_default_metadata() {
    return #{ weight: 1.0 };

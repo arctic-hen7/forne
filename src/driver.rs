@@ -163,11 +163,10 @@ impl<'e, 's> Driver<'e, 's> {
         let mut cards_with_ids = self.set.cards.iter().collect::<Vec<_>>();
         let (card_id, card) = match cards_with_ids.choose_weighted_mut(&mut rng, |(_, card): &(&Uuid, &Card)| {
             if let Some(method) = &self.method {
-                let card = (*card).clone();
                 let res = match &self.target {
-                    CardType::All => (method.get_weight)(card),
-                    CardType::Starred if card.starred => (method.get_weight)(card),
-                    CardType::Difficult if card.difficult => (method.get_weight)(card),
+                    CardType::All => (method.get_weight)(card.method_data.clone(), card.difficult),
+                    CardType::Starred if card.starred => (method.get_weight)(card.method_data.clone(), card.difficult),
+                    CardType::Difficult if card.difficult => (method.get_weight)(card.method_data.clone(), card.difficult),
                     _ => Ok(0.0)
                 };
                 // TODO handle errors (very realistic that they would occur with custom scripts!)
@@ -184,11 +183,13 @@ impl<'e, 's> Driver<'e, 's> {
             Ok(data) => data,
             // We're done!
             Err(WeightedError::AllWeightsZero) => {
-                // If we've genuinely finished, say so (but tests will never finish a set in this way)
-                if self.method.is_some() {
+                // If we've genuinely finished, say so
+                if let Some(method) = &self.method {
                     self.set.run_state = None;
+                    self.set.reset_learn((method.get_default_metadata)()?);
                 } else {
                     self.set.test_in_progress = false;
+                    self.set.reset_test();
                 }
 
                 return Ok(None);
@@ -224,7 +225,7 @@ impl<'e, 's> Driver<'e, 's> {
     /// you should call `.first()` instead, as calling this will lead to an error. Note that the provided response
     /// must be *identical* to one of the responses defined by the method in use (these can be found with `.allowed_responses()`).
     pub fn next(&mut self, response: String) -> Result<Option<SlimCard>> {
-        if self.allowed_responses().iter().any(|x| x == &response) {
+        if !self.allowed_responses().iter().any(|x| x == &response) {
             bail!("invalid user response to card");
         }
 
@@ -232,19 +233,19 @@ impl<'e, 's> Driver<'e, 's> {
             // We know this element exists (we hold the only mutable reference to the set)
             let card = self.set.cards.get_mut(card_id).unwrap();
             if let Some(method) = &self.method {
-                let (method_data, difficult) = (method.adjust_card)(response, card.clone())?;
+                let (method_data, difficult) = (method.adjust_card)(response, card.method_data.clone(), card.difficult)?;
                 card.method_data = method_data;
                 if self.mutate_difficulty {
                     card.difficult = difficult;
                 }
             } else {
                 card.seen_in_test = true;
-                // TODO Allow this behaviour to be disabled
+
                 if response == "n" && self.mark_starred {
                     card.starred = true;
                 } else if response == "y" && self.mark_unstarred {
                     card.starred = false;
-                } else { unreachable!() }
+                }
 
                 // Prevent this card from being double-adjusted if there's an error later
                 self.latest_card = None;
