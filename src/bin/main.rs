@@ -168,12 +168,12 @@ fn method_from_string(method_str: String) -> anyhow::Result<forne::RawMethod> {
 #[cfg(feature = "cli")]
 fn drive<'a>(mut driver: forne::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
     use anyhow::{bail, Context};
+    use crossterm::{terminal, ExecutableCommand};
     use std::{
         fs,
         io::{self, Write},
     };
     use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-    use crossterm::{ExecutableCommand, terminal};
 
     let mut yellow = ColorSpec::new();
     yellow.set_fg(Some(Color::Yellow));
