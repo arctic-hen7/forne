@@ -5,7 +5,7 @@ compile_error!("the cli binary must be built with the `cli` feature flag");
 #[cfg(feature = "cli")]
 fn main() -> anyhow::Result<()> {
     use anyhow::Context;
-    use forn::{Forn, Set};
+    use forne::{Forne, Set};
     use clap::Parser;
     use opts::{Args, Command};
     use std::fs;
@@ -25,8 +25,8 @@ fn main() -> anyhow::Result<()> {
                 fs::read_to_string(adapter).with_context(|| "failed to read adapter script")?;
             let method = method_from_string(method)?;
 
-            let forn = Forn::new_set(contents, &adapter_script, method)?;
-            let json = forn.save_set()?;
+            let forne = Forne::new_set(contents, &adapter_script, method)?;
+            let json = forne.save_set()?;
             fs::write(output, json).with_context(|| "failed to write new set to output file")?;
 
             println!("New set created!");
@@ -41,14 +41,14 @@ fn main() -> anyhow::Result<()> {
             let json =
                 fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
-            let mut forn = Forn::from_set(set);
+            let mut forne = Forne::from_set(set);
             let method = method_from_string(method)?;
             if reset && confirm("Are you absolutely certain you want to reset your learn progress? This action is IRREVERSIBLE!!!")? {
-                forn.reset_learn(method.clone())?;
+                forne.reset_learn(method.clone())?;
             } else {
                 println!("Continuing with previous progress...");
             }
-            let mut driver = forn.learn(method)?;
+            let mut driver = forne.learn(method)?;
             driver.set_target(ty);
             if let Some(count) = count {
                 driver.set_max_count(count);
@@ -72,13 +72,13 @@ fn main() -> anyhow::Result<()> {
             let json =
                 fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
             let set = Set::from_json(&json)?;
-            let mut forn = Forn::from_set(set);
+            let mut forne = Forne::from_set(set);
             if reset && confirm("Are you sure you want to reset your test progress?")? {
-                forn.reset_test();
+                forne.reset_test();
             } else {
                 println!("Continuing with previous progress...");
             }
-            let mut driver = forn.test();
+            let mut driver = forne.test();
             driver.set_target(ty);
             if let Some(count) = count {
                 driver.set_max_count(count);
@@ -134,9 +134,9 @@ fn main() -> anyhow::Result<()> {
 ///
 /// For custom scripts, this will make their name be the filename of the script with the current user's username prefixed.
 #[cfg(feature = "cli")]
-fn method_from_string(method_str: String) -> anyhow::Result<forn::RawMethod> {
+fn method_from_string(method_str: String) -> anyhow::Result<forne::RawMethod> {
     use anyhow::bail;
-    use forn::RawMethod;
+    use forne::RawMethod;
     use std::{fs, path::PathBuf};
 
     if RawMethod::is_inbuilt(&method_str) {
@@ -145,7 +145,7 @@ fn method_from_string(method_str: String) -> anyhow::Result<forn::RawMethod> {
         // It's a path to a custom script
         let method_path = PathBuf::from(&method_str);
         if let Ok(contents) = fs::read_to_string(&method_path) {
-            // Follow Forn's recommended naming conventions for custom methods
+            // Follow Forne's recommended naming conventions for custom methods
             let name = format!(
                 "{}/{}",
                 whoami::username(),
@@ -156,7 +156,7 @@ fn method_from_string(method_str: String) -> anyhow::Result<forn::RawMethod> {
                 body: contents,
             })
         } else {
-            bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, forn couldn't read it)")
+            bail!("provided method is not inbuilt and does not represent a valid method file (or if it did, forne couldn't read it)")
         }
     }
 }
@@ -166,7 +166,7 @@ fn method_from_string(method_str: String) -> anyhow::Result<forn::RawMethod> {
 ///
 /// This returns the number of cards reviewed.
 #[cfg(feature = "cli")]
-fn drive<'a>(mut driver: forn::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
+fn drive<'a>(mut driver: forne::Driver<'a, 'a>, set_file: &str) -> anyhow::Result<u32> {
     use anyhow::{bail, Context};
     use std::{
         fs,
@@ -277,10 +277,10 @@ fn confirm(message: &str) -> anyhow::Result<bool> {
 mod opts {
     use std::path::PathBuf;
 
-    use forn::CardType;
+    use forne::CardType;
     use clap::{Parser, Subcommand};
 
-    /// Forn: a spaced repetition CLI to help you learn stuff
+    /// Forne: a spaced repetition CLI to help you learn stuff
     #[derive(Parser, Debug)]
     #[command(author, version, about, long_about = None)]
     pub struct Args {

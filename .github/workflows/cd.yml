@@ -13,14 +13,14 @@ jobs:
             matrix:
                 include:
                     - os: ubuntu-latest
-                      artifact_name: forn
-                      asset_name: forn-linux-amd64
+                      artifact_name: forne
+                      asset_name: forne-linux-amd64
                     - os: macos-latest
-                      artifact_name: forn
-                      asset_name: forn-macos-amd64
+                      artifact_name: forne
+                      asset_name: forne-macos-amd64
                     - os: windows-latest
-                      artifact_name: forn.exe
-                      asset_name: forn-windows-amd64
+                      artifact_name: forne.exe
+                      asset_name: forne-windows-amd64
         steps:
             - uses: actions/checkout@v2
 
@@ -33,4 +33,4 @@ jobs:
                   file: target/release/${{ matrix.artifact_name }}
                   asset_name: ${{ matrix.asset_name }}
                   tag: ${{ github.ref }}
-                  body: "The below binaries/executables are for the Forn CLI. See [CHANGELOG.md](./CHANGELOG.md) for details of the changes in this version."
+                  body: "The below binaries/executables are for the Forne CLI. See [CHANGELOG.md](./CHANGELOG.md) for details of the changes in this version."

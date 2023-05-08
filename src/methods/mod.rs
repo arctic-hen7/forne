@@ -44,10 +44,10 @@ impl<'e> Method<'e> {
     /// # Panics
     ///
     /// This will panic if compilation fails, as compilation should never fail for an inbuilt method, and this would represent
-    /// a bug in Forn.
+    /// a bug in Forne.
     fn from_inbuilt(method_name: &str, engine: &'e Engine) -> Result<Self> {
         if !Method::is_inbuilt(method_name) {
-            bail!("provided method name '{method_name}' is not an inbuilt method (are you using the latest version of forn?)");
+            bail!("provided method name '{method_name}' is not an inbuilt method (are you using the latest version of forne?)");
         }
         let script = METHODS
             .get_file(method_name.to_string() + ".rhai")
@@ -55,7 +55,7 @@ impl<'e> Method<'e> {
             .contents_utf8()
             .expect("inbuilt method should be utf-8");
         let ast = engine.compile(script).expect(
-            "inbuilt method should not panic on compilation (this is a bug in forn!)",
+            "inbuilt method should not panic on compilation (this is a bug in forne!)",
         );
         let method = Self::from_ast(method_name, ast, engine)?;
 
@@ -152,7 +152,7 @@ pub enum RawMethod {
         /// of the names of scripts they write to avoid users of these scripts accidentally causing conflicts with scripts written by others.
         ///
         /// E.g. if Alice writes a custom method script and distributes it on the internet with the name `powerlearn-v2`, and Bob starts using
-        /// it, but then later decides to use a different script made by Chloe, also called `powerlearn-v2`, Forn will unwittingly pass
+        /// it, but then later decides to use a different script made by Chloe, also called `powerlearn-v2`, Forne will unwittingly pass
         /// the metadata Alice's script expected to Chloe's, at best causing it to completely fail, and at worst causing all Bob's previous
         /// data to be overwritten irretrievably. This could be avoided if Alice produced `alice/powerlearn-v2` and Chloe produces
         /// `chloe/powerlearn-v2`.
@@ -167,7 +167,7 @@ impl RawMethod {
     ///
     /// # Panics
     ///
-    /// This will panic if compiling an inbuilt method fails, as this would be a bug in Forn. Any other failure will be
+    /// This will panic if compiling an inbuilt method fails, as this would be a bug in Forne. Any other failure will be
     /// gracefully returned as an error.
     pub fn into_method(self, engine: &Engine) -> Result<Method<'_>> {
         match self {
