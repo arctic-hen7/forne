@@ -1,0 +1,36 @@
+name: Build and Release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+jobs:
+    # This builds and releases for Windows, MacOS, and Linux
+    usu-build-release:
+        runs-on: ${{ matrix.os }}
+        strategy:
+            matrix:
+                include:
+                    - os: ubuntu-latest
+                      artifact_name: forn
+                      asset_name: forn-linux-amd64
+                    - os: macos-latest
+                      artifact_name: forn
+                      asset_name: forn-macos-amd64
+                    - os: windows-latest
+                      artifact_name: forn.exe
+                      asset_name: forn-windows-amd64
+        steps:
+            - uses: actions/checkout@v2
+
+            - name: Build
+              run: cargo build --release
+            - name: Release binary
+              uses: svenstaro/upload-release-action@v2
+              with:
+                  repo_token: ${{ secrets.GITHUB_TOKEN }}
+                  file: target/release/${{ matrix.artifact_name }}
+                  asset_name: ${{ matrix.asset_name }}
+                  tag: ${{ github.ref }}
+                  body: "The below binaries/executables are for the Forn CLI. See [CHANGELOG.md](./CHANGELOG.md) for details of the changes in this version."
