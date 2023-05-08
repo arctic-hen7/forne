@@ -2,6 +2,13 @@
 name = "forne"
 version = "0.1.0"
 edition = "2021"
+description = "A Turing-complete but dead-simple spaced repetition CLI that helps you learn stuff."
+authors = ["arctic-hen7 <arctic.hen@pm.me>"]
+license = "MIT"
+repository = "https://github.com/arctic-hen7/forne"
+readme = "README.md"
+keywords = ["learning", "spaced-repetition", "cli", "education"]
+categories = ["command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -34,6 +41,3 @@ path = "src/bin/main.rs"
 # Enable dependencies and features for the CLI only. This unfortunately has to pollute the library, because Cargo does not support
 # separate binary dependencies.
 cli = ["clap", "whoami", "termcolor", "termion"]
-
-# TODO disable
-default = ["cli"]
