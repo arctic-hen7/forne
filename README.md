@@ -87,13 +87,15 @@ Adapters are written in [Rhai](rhai.rs), a simple Rust-like scripting language, 
 - `replace_one(regexp, replacement, text) -> string`
 - `replace_all(regexp, replacement, text) -> string`
 
-There is also a helper function for simple cases that lets you plug in a regular expression with the named capture groups `q` and `a`, and they will be returned. If you don't need to do any further processing, your entire adapter script could be something like this:
+There is also a helper function for simple cases that lets you plug in a regular expression with capture groups for the question and answer, the indices of which you provide, and they will be returned. If you don't need to do any further processing, your entire adapter script could be something like this:
 
 ```rhai
-return regexp_to_pairs(`my-regexp-here`, SOURCE);
+return regexp_to_pairs(`my-regexp-here`, 1, 2, SOURCE);
 ```
 
-Note that we put the regular expression in backticks to avoid any escape characters. We recommend <https://regex101.com> for testing your regular expressions, and non-technical (and technical!) users should be aware that ChatGPT is unreasonably good at producing regular expressions, and even at creating questions from your notes!
+Here, `1, 2` means the first capture group contains the question, and the second contains the answer. `0` would be the entire match. Note that we put the regular expression in backticks to avoid any escape characters.
+
+We recommend <https://regex101.com> for testing your regular expressions, and non-technical (and technical!) users should be aware that ChatGPT is unreasonably good at producing regular expressions, and even at creating questions from your notes!
 
 For further documentation about the Rhai language, you can refer to the [Rhai book](https://rhai.rs/book), in particular the section on [string manipulation](https://rhai.rs/book/ref/string-fn.html). And, if you need any help writing your own adapter, don't hesitate to open a [new discussion](https://github.com/arctic-hen7/forne/discussions/new/choose) and ask us, we'll be happy to give you a hand!
 

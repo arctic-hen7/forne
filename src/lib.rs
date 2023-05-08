@@ -131,6 +131,22 @@ impl Forne {
                 Ok::<_, Box<EvalAltResult>>(Dynamic::from(result))
             },
         );
+        engine.register_fn(
+            "regexp_to_pairs",
+            |regex: &str, question_idx: i64, answer_idx: i64, text: &str| {
+                let re = Regex::new(regex).map_err(|_| "")?;
+                let mut pairs = Vec::new();
+                for raw_caps in re.captures_iter(text) {
+                    let raw_caps = raw_caps.map_err(|_| "")?;
+                    let question = raw_caps.get(question_idx as usize).ok_or("")?.as_str();
+                    let answer = raw_caps.get(answer_idx as usize).ok_or("")?.as_str();
+
+                    pairs.push(Dynamic::from_array(vec![question.into(), answer.into()]));
+                }
+
+                Ok::<_, Box<EvalAltResult>>(Dynamic::from_array(pairs))
+            }
+        );
 
         engine
     }
