@@ -13,6 +13,7 @@ pub use set::*;
 use anyhow::Result;
 use fancy_regex::Regex;
 use rhai::{Dynamic, Engine, EvalAltResult};
+use std::time::SystemTime;
 
 /// A Forne engine, which can act as the backend for learn operations. An instance of this `struct` should be
 /// instantiated with a [`Set`] to operate on and an operation to perform.
@@ -153,6 +154,17 @@ impl Forne {
                 }
 
                 Ok::<_, Box<EvalAltResult>>(Dynamic::from_array(pairs))
+            },
+        );
+        // Support for working with timestamps
+        engine.register_fn(
+            "get_seconds_since_epoch", // Gets the number of *seconds* since Unix epoch
+            || {
+                match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+                    Ok(duration) => duration.as_secs() as i64,
+                    // If we're before 01/01/1970...well ok then!
+                    Err(err) => err.duration().as_secs() as i64 * -1,
+                }
             },
         );
 

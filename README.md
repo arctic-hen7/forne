@@ -110,7 +110,9 @@ Method scripts are a little more complicated than adapter scripts, as they need 
 3. A function `adjust_card(response, data, difficult) -> [..., bool]`, which takes in the user's response to a card (guaranteed to be one of the ones you defined in `const RESPONSES`), the card's data, and whether or not it is marked as difficult. It should return the new data (this is where you update the properties that you use to determine a card's weight) and whether or not the card should now be marked as difficult. Note that the meaning of 'difficult' is entirely method-dependent, and it is simply one of the ways Forne lets users see how they're doing with their sets.
 4. A function `get_default_metadata() -> ...`, which should return the default values you want to use for a card's `data`.
 
-As an example to help you understand all this a bit better, here's a very naive learning method with heavy commenting:
+If your method depends on scheduling when a card should next be reviewed, you can get a representation of the time with `get_seconds_since_epoch`, which returns the number of seconds since Unix Epoch (Jan. 1 1970), which will be negative if you've done a bit of time travel.
+
+As an example to help you understand all this a bit better, here's a very naive learning method:
 
 ```rhai
 const RESPONSES = ["y", "n"];
