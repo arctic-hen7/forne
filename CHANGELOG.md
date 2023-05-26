@@ -9,6 +9,13 @@ All notable changes to this project will be documented in this file. See [standa
 
 * fixed update message ([93d3f6f](https://github.com/arctic-hen7/forne/commit/93d3f6fa706779d1f90b0e5ce65c43c7691bf9b4))
 
+### [0.1.4](https://github.com/arctic-hen7/forne/compare/v0.1.3...v0.1.4) (2023-05-26)
+
+
+### Bug Fixes
+
+* fixed update message ([93d3f6f](https://github.com/arctic-hen7/forne/commit/93d3f6fa706779d1f90b0e5ce65c43c7691bf9b4))
+
 ### [0.1.3](https://github.com/arctic-hen7/forne/compare/v0.1.2...v0.1.3) (2023-05-26)
 
 
