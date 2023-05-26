@@ -52,7 +52,7 @@ fn main() -> anyhow::Result<()> {
             fs::write(set_file, new_json)
                 .with_context(|| "failed to write updated set to output file")?;
 
-            println!("New set created!");
+            println!("Set updated successfully!");
         }
         Command::Learn {
             set: set_file,
