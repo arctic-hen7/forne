@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.3](https://github.com/arctic-hen7/forne/compare/v0.1.2...v0.1.3) (2023-05-26)
+
+
+### Features
+
+* added `get_seconds_since_epoch()` ([dee3102](https://github.com/arctic-hen7/forne/commit/dee31024f0421ca9f0bb041037af902fb40b81c6)), closes [#1](https://github.com/arctic-hen7/forne/issues/1)
+* added support for updating a set ([1902302](https://github.com/arctic-hen7/forne/commit/19023024d4f72c6618675457beaf541f9cb900aa))
+
 ### [0.1.2](https://github.com/arctic-hen7/forne/compare/v0.1.1...v0.1.2) (2023-05-08)
 
 
