@@ -39,6 +39,16 @@ impl Forne {
             rhai_engine: engine,
         })
     }
+    /// Updates the given set from a source. See [`Set::update_with_adapter`] for the exact behaviour of this method.
+    pub fn update(
+        &mut self,
+        src: String,
+        adapter_script: &str,
+        raw_method: RawMethod,
+    ) -> Result<()> {
+        self.set
+            .update_with_adapter(adapter_script, src, raw_method, &self.rhai_engine)
+    }
     /// Creates a new Forne engine. While not inherently expensive, this should generally only be called once, or when
     /// the system needs to restart.
     pub fn from_set(set: Set) -> Self {
@@ -163,7 +173,7 @@ impl Forne {
                 match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
                     Ok(duration) => duration.as_secs() as i64,
                     // If we're before 01/01/1970...well ok then!
-                    Err(err) => err.duration().as_secs() as i64 * -1,
+                    Err(err) => -(err.duration().as_secs() as i64),
                 }
             },
         );

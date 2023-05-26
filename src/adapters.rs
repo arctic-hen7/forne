@@ -18,21 +18,50 @@ impl Set {
         method: RawMethod,
         engine: &Engine,
     ) -> Result<Self> {
+        // Create an empty set and then populate it
+        let mut set = Self {
+            method: match &method {
+                RawMethod::Inbuilt(name) => name,
+                RawMethod::Custom { name, .. } => name,
+            }
+            .to_string(),
+            cards: HashMap::new(),
+            run_state: None,
+            test_in_progress: false,
+        };
+        set.update_with_adapter(script, src, method, engine)?;
+
+        Ok(set)
+    }
+    /// Updates this set from the given source. This will add any new question/answer pairs the adapter script finds,
+    /// and will update any answers that change. If a question changes, it will be registered as a new card. Any cards
+    /// whose answers change will have their metadata reset in order to allow the user to learn the new card.
+    ///
+    /// The arguments provided to this function must satisfy the same requirements as those provided to
+    /// [`Self::new_with_adapter`].
+    pub(crate) fn update_with_adapter(
+        &mut self,
+        script: &str,
+        src: String,
+        method: RawMethod,
+        engine: &Engine,
+    ) -> Result<()> {
         let method = method.into_method(engine)?;
 
         let mut scope = Scope::new();
         scope.push_constant("SOURCE", src);
+        // This will get *all* the cards in the source, which we will then compare
+        // with what we already have
         let raw_array: Vec<Dynamic> = engine
             .eval_with_scope(&mut scope, script)
             .with_context(|| "failed to run adapter script")?;
-        let mut cards = HashMap::new();
 
         for dyn_elem in raw_array {
             let elems: Vec<String> = dyn_elem
                 .into_typed_array()
                 .map_err(|_| anyhow!("couldn't parse adapter results"))?;
 
-            let card = Card {
+            let new_card = Card {
                 question: elems
                     .get(0)
                     .ok_or_else(|| anyhow!("adapter did not return question for card"))?
@@ -46,22 +75,18 @@ impl Set {
                 starred: false,
                 method_data: (method.get_default_metadata)()?,
             };
-            cards.insert(Uuid::new_v4(), card);
+            // If we've already got this question, update the answer if necessary, otherwise add it afresh
+            let found = self
+                .cards
+                .iter_mut()
+                .find(|(_id, card)| card.question == new_card.question);
+            if let Some((_id, card)) = found {
+                *card = new_card;
+            } else {
+                self.cards.insert(Uuid::new_v4(), new_card);
+            }
         }
 
-        Ok(Self {
-            method: method.name,
-            cards,
-            run_state: None,
-            test_in_progress: false,
-        })
+        Ok(())
     }
-    // /// Updates this set from the given source. This will add any new question/answer pairs the adapter script finds,
-    // /// and will update any answers that change. If a question changes, it will be registered as a new card. None of
-    // /// the metadata on existing cards will be altered.
-    // pub(crate) fn update_with_adapter(&mut self, script: &str, src: String, engine: &Engine) -> Result<()> {
-    //     let mut scope = Scope::new();
-    //     scope.push_constant("SOURCE", src);
-    //     let pairs: Vec<(String, String)> = engine.eval_with_scope(&mut scope, script).with_context(|| "failed to run adapter script")?;
-    // }
 }

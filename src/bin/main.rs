@@ -31,6 +31,29 @@ fn main() -> anyhow::Result<()> {
 
             println!("New set created!");
         }
+        Command::Update {
+            set: set_file,
+            source,
+            adapter,
+            method,
+        } => {
+            let json =
+                fs::read_to_string(&set_file).with_context(|| "failed to read from set file")?;
+            let set = Set::from_json(&json)?;
+            let source =
+                fs::read_to_string(source).with_context(|| "failed to read from source file")?;
+            let adapter_script =
+                fs::read_to_string(adapter).with_context(|| "failed to read adapter script")?;
+            let method = method_from_string(method)?;
+
+            let mut forne = Forne::from_set(set);
+            forne.update(source, &adapter_script, method)?;
+            let new_json = forne.save_set()?;
+            fs::write(set_file, new_json)
+                .with_context(|| "failed to write updated set to output file")?;
+
+            println!("New set created!");
+        }
         Command::Learn {
             set: set_file,
             method,
@@ -297,6 +320,20 @@ mod opts {
             input: String,
             /// The file to output the set to as JSON
             output: String,
+            /// The path to the adapter script to be used to parse the set
+            #[arg(short, long)]
+            adapter: PathBuf,
+            /// The learning method to use for the new set
+            #[arg(short, long)]
+            method: String, // Secondary parsing
+        },
+        /// Updates an existing set with some new terms
+        Update {
+            /// The existing set file
+            set: String,
+            /// The file to update the set with
+            #[arg(short, long)]
+            source: String,
             /// The path to the adapter script to be used to parse the set
             #[arg(short, long)]
             adapter: PathBuf,
