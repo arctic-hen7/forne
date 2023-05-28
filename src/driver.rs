@@ -198,9 +198,8 @@ impl<'e, 's> Driver<'e, 's> {
                 // We're done!
                 Err(WeightedError::AllWeightsZero) => {
                     // If we've genuinely finished, say so
-                    if let Some(method) = &self.method {
+                    if self.method.is_some() {
                         self.set.run_state = None;
-                        self.set.reset_learn((method.get_default_metadata)()?);
                     } else {
                         self.set.test_in_progress = false;
                         self.set.reset_test();
