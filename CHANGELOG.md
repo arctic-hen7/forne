@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.5](https://github.com/arctic-hen7/forne/compare/v0.1.4...v0.1.5) (2023-05-28)
+
+
+### Features
+
+* added sm-2 implementation ([37c7a67](https://github.com/arctic-hen7/forne/commit/37c7a677099346c316f0c1d2b5469854c21de9db))
+
+
+### Bug Fixes
+
+* allowed longer-term learning algorithms ([d0af213](https://github.com/arctic-hen7/forne/commit/d0af2130721971140474b44438ab66afbe1af2c4))
+* fixed gitignore ([3c30b19](https://github.com/arctic-hen7/forne/commit/3c30b19094aacaa75e171bc32f18e20790375504))
+
 ### [0.1.4](https://github.com/arctic-hen7/forne/compare/v0.1.3...v0.1.4) (2023-05-26)
 
 
